@@ -4,6 +4,8 @@ from django.conf import settings
 from django.db import models
 from django.db.models import Q
 
+from app.errors import DraftNotEditableError
+
 from .application import Application
 from .querysets import ApplicationDraftQuerySet
 
@@ -61,6 +63,11 @@ class ApplicationDraft(models.Model):
 
     def __str__(self) -> str:
         return f"{self.pk} rev.{self.revision}"
+
+    def ensure_editable(self) -> None:
+        """編集中でなければ DraftNotEditableError。"""
+        if self.status != self.Status.EDITING:
+            raise DraftNotEditableError(draft_id=self.pk)
 
 
 def draft_upload_path(instance, filename: str) -> str:

@@ -7,9 +7,11 @@ from django.contrib import messages
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import redirect
 
-from app.errors import DomainError
+from app.errors import DomainError, DraftNotEditableError
 from app.messages import SUCCESS_MESSAGES, message_for_error
+from app.models import ApplicationDraft
 from app.presentation import STEP_BY_KEY, resolve_step_key
+from app.selectors import get_draft_for_edit
 
 
 def redirect_to_step(*, draft_id: UUID, step_key: str) -> HttpResponse:
@@ -26,6 +28,25 @@ def redirect_after_save(
     return redirect_to_step(draft_id=draft_id, step_key=step_key)
 
 
+def load_editable_draft(
+    *,
+    request: HttpRequest,
+    draft_id: UUID,
+) -> tuple[ApplicationDraft | None, HttpResponse | None]:
+    """
+    所有者の Draft を取得し、編集中でなければ一覧へ Redirect する。
+
+    404 は selector（存在しない / 所有者外）。編集不可は DomainError の文言付き Redirect。
+    """
+    draft = get_draft_for_edit(draft_id=draft_id, user=request.user)
+    try:
+        draft.ensure_editable()
+    except DomainError as error:
+        messages.error(request, message_for_error(error))
+        return None, redirect("app:application-list")
+    return draft, None
+
+
 def run_draft_update(
     *,
     request: HttpRequest,
@@ -37,10 +58,13 @@ def run_draft_update(
 ) -> HttpResponse | None:
     """
     更新を実行し、成功時は次ステップへ、DomainError 時は同画面へ Redirect する。
-    戻り値が None のときは呼び出し側が再表示する。
+    編集不可は一覧へ戻す。戻り値が None のときは呼び出し側が再表示する。
     """
     try:
         update()
+    except DraftNotEditableError as error:
+        messages.error(request, message_for_error(error))
+        return redirect("app:application-list")
     except DomainError as error:
         messages.error(request, message_for_error(error))
         return redirect_to_step(draft_id=draft_id, step_key=current_step)
@@ -50,3 +74,4 @@ def run_draft_update(
         requested=next_step,
         fallback=fallback_step,
     )
+

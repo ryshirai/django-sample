@@ -18,8 +18,7 @@ def update_draft_data(
 ) -> ApplicationDraft:
     """mutate で data を書き換え、revision 一致時だけ CAS 更新する。"""
     draft = ApplicationDraft.objects.owned_by(owner).get(pk=draft_id)
-    if draft.status != ApplicationDraft.Status.EDITING:
-        raise DraftNotEditableError(draft_id=draft_id)
+    draft.ensure_editable()
 
     new_data = deepcopy(draft.data)
     mutate(new_data)

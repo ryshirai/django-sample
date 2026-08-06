@@ -1,3 +1,5 @@
+from uuid import UUID
+
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.http import HttpRequest, HttpResponse
@@ -9,7 +11,6 @@ from app.errors import DomainError, ValidationError
 from app.forms import AddressForm, AttachmentFormSet, BasicForm, MemberFormSet, RevisionForm
 from app.messages import SUCCESS_MESSAGES, localize_validation_errors, message_for_error
 from app.presentation import attachment_initial, draft_page_context, member_initial
-from app.selectors import get_draft_for_edit
 from app.services import (
     submit_draft,
     update_address,
@@ -18,13 +19,15 @@ from app.services import (
     update_members,
 )
 
-from .helpers import redirect_after_save, run_draft_update
+from .helpers import load_editable_draft, redirect_after_save, run_draft_update
 
 
 @login_required
 @require_http_methods(["GET", "POST"])
-def basic_edit(request: HttpRequest, draft_id) -> HttpResponse:
-    draft = get_draft_for_edit(draft_id=draft_id, user=request.user)
+def basic_edit(request: HttpRequest, draft_id: UUID) -> HttpResponse:
+    draft, error_response = load_editable_draft(request=request, draft_id=draft_id)
+    if error_response is not None:
+        return error_response
     form = BasicForm(
         request.POST or None,
         initial={**draft.data["basic"], "revision": draft.revision},
@@ -55,8 +58,10 @@ def basic_edit(request: HttpRequest, draft_id) -> HttpResponse:
 
 @login_required
 @require_http_methods(["GET", "POST"])
-def address_edit(request: HttpRequest, draft_id) -> HttpResponse:
-    draft = get_draft_for_edit(draft_id=draft_id, user=request.user)
+def address_edit(request: HttpRequest, draft_id: UUID) -> HttpResponse:
+    draft, error_response = load_editable_draft(request=request, draft_id=draft_id)
+    if error_response is not None:
+        return error_response
     form = AddressForm(
         request.POST or None,
         initial={**draft.data["address"], "revision": draft.revision},
@@ -89,8 +94,10 @@ def address_edit(request: HttpRequest, draft_id) -> HttpResponse:
 
 @login_required
 @require_http_methods(["GET", "POST"])
-def members_edit(request: HttpRequest, draft_id) -> HttpResponse:
-    draft = get_draft_for_edit(draft_id=draft_id, user=request.user)
+def members_edit(request: HttpRequest, draft_id: UUID) -> HttpResponse:
+    draft, error_response = load_editable_draft(request=request, draft_id=draft_id)
+    if error_response is not None:
+        return error_response
     formset = MemberFormSet(
         request.POST or None,
         initial=member_initial(draft),
@@ -134,8 +141,10 @@ def members_edit(request: HttpRequest, draft_id) -> HttpResponse:
 
 @login_required
 @require_http_methods(["GET", "POST"])
-def attachments_edit(request: HttpRequest, draft_id) -> HttpResponse:
-    draft = get_draft_for_edit(draft_id=draft_id, user=request.user)
+def attachments_edit(request: HttpRequest, draft_id: UUID) -> HttpResponse:
+    draft, error_response = load_editable_draft(request=request, draft_id=draft_id)
+    if error_response is not None:
+        return error_response
     formset = AttachmentFormSet(
         request.POST or None,
         request.FILES or None,
@@ -180,8 +189,10 @@ def attachments_edit(request: HttpRequest, draft_id) -> HttpResponse:
 
 @login_required
 @require_http_methods(["GET", "POST"])
-def confirm(request: HttpRequest, draft_id) -> HttpResponse:
-    draft = get_draft_for_edit(draft_id=draft_id, user=request.user)
+def confirm(request: HttpRequest, draft_id: UUID) -> HttpResponse:
+    draft, error_response = load_editable_draft(request=request, draft_id=draft_id)
+    if error_response is not None:
+        return error_response
     form = RevisionForm(request.POST or None, initial={"revision": draft.revision})
     validation_errors: dict[str, list[str]] = {}
 
@@ -205,7 +216,7 @@ def confirm(request: HttpRequest, draft_id) -> HttpResponse:
             messages.error(request, message_for_error(error))
         except DomainError as error:
             messages.error(request, message_for_error(error))
-            return redirect("app:draft-confirm", draft_id=draft.id)
+            return redirect("app:application-list")
         else:
             messages.success(request, SUCCESS_MESSAGES["application_submitted"])
             return redirect("app:application-list")
@@ -213,3 +224,4 @@ def confirm(request: HttpRequest, draft_id) -> HttpResponse:
     context = draft_page_context(draft=draft, current_step="confirm")
     context.update({"form": form, "validation_errors": validation_errors})
     return render(request, "app/draft_confirm.html", context)
+

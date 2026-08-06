@@ -7,6 +7,7 @@ from .schema import (
 )
 from .types import (
     AddressPayload,
+    AttachmentFormInitial,
     AttachmentPayload,
     BasicPayload,
     DraftData,
@@ -17,6 +18,7 @@ from .validation import validate_draft
 __all__ = [
     "AddressPayload",
     "ApplicationCommand",
+    "AttachmentFormInitial",
     "AttachmentPayload",
     "BasicPayload",
     "CURRENT_SCHEMA_VERSION",

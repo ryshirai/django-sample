@@ -6,14 +6,14 @@ from django.db import transaction
 from django.utils import timezone
 
 from app.drafts import command_from_draft, validate_draft
-from app.errors import DraftConflictError, DraftNotEditableError, ValidationError
+from app.errors import DraftConflictError, ValidationError
 from app.models import (
     Application,
     ApplicationAttachment,
     ApplicationDraft,
     ApplicationMember,
 )
-from app.rules import ValidationCode
+from app.rules import ValidationCode, validation_code_from_django
 
 # 一意制約を一時回避するための position 退避先。
 TEMPORARY_POSITION_BASE = 100_000
@@ -33,8 +33,7 @@ def submit_draft(
         .select_related("application")
         .get(pk=draft_id)
     )
-    if draft.status != ApplicationDraft.Status.EDITING:
-        raise DraftNotEditableError(draft_id=draft_id)
+    draft.ensure_editable()
     if draft.revision != expected_revision:
         raise DraftConflictError(
             expected_revision=expected_revision,
@@ -137,11 +136,26 @@ def _save_attachments(*, application: Application, commands) -> None:
 
 
 def _full_clean_or_domain_error(instance, *, prefix: str = "application") -> None:
+    """full_clean の失敗を言語非依存 ValidationCode へ変換して再送出する。"""
     try:
         instance.full_clean()
     except DjangoValidationError as exc:
-        errors = {
-            f"{prefix}.{field}": [str(message) for message in messages]
-            for field, messages in exc.message_dict.items()
+        raise ValidationError(errors=_codes_from_django_validation(exc, prefix=prefix)) from exc
+
+
+def _codes_from_django_validation(
+    exc: DjangoValidationError,
+    *,
+    prefix: str,
+) -> dict[str, list[str]]:
+    """Django ValidationError を field -> [ValidationCode, ...] に変換する。"""
+    if hasattr(exc, "error_dict"):
+        return {
+            f"{prefix}.{field}": [
+                validation_code_from_django(error.code) for error in field_errors
+            ]
+            for field, field_errors in exc.error_dict.items()
         }
-        raise ValidationError(errors=errors) from exc
+    return {
+        prefix: [validation_code_from_django(error.code) for error in exc.error_list],
+    }
