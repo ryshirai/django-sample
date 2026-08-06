@@ -4,9 +4,16 @@ import pytest
 
 from app.drafts import CURRENT_SCHEMA_VERSION, BudgetItemPayload, ContactPayload, migrate_draft_data
 from app.errors import ValidationError
-from app.models import Application
+from app.models import Application, ApplicationDraft
 from app.rules import ValidationCode
-from app.services import create_draft, submit_draft, update_budget_items, update_contact
+from app.services import (
+    create_draft,
+    ensure_current_schema,
+    submit_draft,
+    update_attachments,
+    update_budget_items,
+    update_contact,
+)
 from app.tests.factories import complete_data, create_application
 
 pytestmark = pytest.mark.django_db
@@ -149,9 +156,6 @@ def test_migrate_v1_draft_data_adds_contact_and_budget():
 
 def test_ensure_current_schema_persists_v1_draft(user):
     """読取経路で v1 Draft が CURRENT まで進み永続化される。"""
-    from app.models import ApplicationDraft
-    from app.services import ensure_current_schema
-
     draft = ApplicationDraft.objects.create(
         owner=user,
         data={
@@ -174,4 +178,66 @@ def test_ensure_current_schema_persists_v1_draft(user):
     assert updated.schema_version == CURRENT_SCHEMA_VERSION
     assert draft.schema_version == CURRENT_SCHEMA_VERSION
     assert "contact" in draft.data
+    assert draft.data["budget_items"] == []
+
+
+def test_ensure_current_schema_does_not_overwrite_newer_data_from_stale_instance(user):
+    """別リクエストが先に移行・更新した内容を古いインスタンスで上書きしない。"""
+    draft = ApplicationDraft.objects.create(
+        owner=user,
+        data={
+            "basic": {"title": "移行前", "purpose": "目的"},
+            "address": {
+                "postal_code": "100-0001",
+                "prefecture": "東京都",
+                "city": "千代田区",
+                "address_line": "1-1",
+            },
+            "members": [],
+            "attachments": [],
+        },
+        schema_version=1,
+    )
+    stale_draft = ApplicationDraft.objects.get(pk=draft.pk)
+    ensure_current_schema(draft=draft)
+    ApplicationDraft.objects.filter(pk=draft.pk).update(
+        data={**draft.data, "basic": {"title": "先行更新", "purpose": "目的"}}
+    )
+
+    result = ensure_current_schema(draft=stale_draft)
+
+    assert result.data["basic"]["title"] == "先行更新"
+    draft.refresh_from_db()
+    assert draft.data["basic"]["title"] == "先行更新"
+
+
+def test_update_attachments_migrates_v1_draft_before_updating(user):
+    """添付更新も他の Draft 更新 Service と同様に schema を現行化する。"""
+    draft = ApplicationDraft.objects.create(
+        owner=user,
+        data={
+            "basic": {"title": "旧", "purpose": "目的"},
+            "address": {
+                "postal_code": "100-0001",
+                "prefecture": "東京都",
+                "city": "千代田区",
+                "address_line": "1-1",
+            },
+            "members": [],
+            "attachments": [],
+        },
+        schema_version=1,
+    )
+
+    result = update_attachments(
+        draft_id=draft.id,
+        owner=user,
+        expected_revision=draft.revision,
+        attachments=[],
+    )
+
+    assert result.schema_version == CURRENT_SCHEMA_VERSION
+    assert result.data["contact"]["phone"] == ""
+    draft.refresh_from_db()
+    assert draft.schema_version == CURRENT_SCHEMA_VERSION
     assert draft.data["budget_items"] == []

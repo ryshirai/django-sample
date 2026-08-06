@@ -189,7 +189,6 @@ Draft(editing)
                       |-- staff: start_review --> under_review
                                                    |-- approve --> approved
                                                    |-- reject  --> rejected
-                      |-- staff/admin: lock --> locked
 ```
 
 - **所有者編集可** は `submitted` のみ。`under_review` / `approved` / `rejected` / `cancelled` /
@@ -197,6 +196,7 @@ Draft(editing)
 - 審査系 Service（`start_review` / `approve_application` / `reject_application`）は staff View
   から呼ばれ、`ApplicationStatusHistory` に監査ログを残す
 - 却下理由は Service が必須検証し、コードは `ValidationCode`、文言は `messages/`
+- `locked` は外部連携などによるロック用の予約状態。今回の画面・Service にはロック操作を公開しない
 
 ## 画面構成
 
