@@ -20,3 +20,10 @@ class ValidationCode:
     FILE_REQUIRED = "file_required"
     INVALID_MEMBER_SOURCE = "invalid_member_source"
     INVALID_ATTACHMENT_SOURCE = "invalid_attachment_source"
+    # Model.full_clean() / Django フィールド検証からマップする汎用コード。
+    MODEL_FIELD_REQUIRED = "model_field_required"
+    MODEL_FIELD_INVALID = "model_field_invalid"
+    MODEL_FIELD_MAX_LENGTH = "model_field_max_length"
+    MODEL_FIELD_MIN_LENGTH = "model_field_min_length"
+    MODEL_FIELD_UNIQUE = "model_field_unique"
+    MODEL_VALIDATION_FAILED = "model_validation_failed"

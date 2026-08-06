@@ -4,7 +4,7 @@ import pytest
 from django.core.files.uploadedfile import SimpleUploadedFile
 
 from app.drafts import AttachmentPayload
-from app.errors import ValidationError
+from app.errors import DraftNotEditableError, ValidationError
 from app.models import Application, ApplicationDraft
 from app.rules import ValidationCode
 from app.services import create_draft, submit_draft, update_attachments
@@ -101,3 +101,38 @@ def test_staged_attachment_is_referenced_by_formal_model(user):
     attachment = application.attachments.get()
     assert attachment.original_name == "identity.txt"
     assert attachment.file.name.startswith("application-files/")
+
+
+def test_submit_maps_full_clean_failure_to_validation_codes(user):
+    """full_clean 失敗は Django 文言ではなく ValidationCode として返る。"""
+    draft = create_draft(owner=user)
+    draft.data = complete_data()
+    draft.data["basic"]["title"] = "x" * 201
+    draft.save(update_fields=("data",))
+
+    with pytest.raises(ValidationError) as raised:
+        submit_draft(
+            draft_id=draft.id,
+            owner=user,
+            expected_revision=draft.revision,
+        )
+
+    codes = raised.value.errors["application.title"]
+    assert codes == [ValidationCode.MODEL_FIELD_MAX_LENGTH]
+    assert all(isinstance(code, str) for code in codes)
+    # 表示文言や Django の英語メッセージが混入していないこと。
+    assert not any(" " in code or "文字" in code for code in codes)
+
+
+def test_submit_rejected_draft_raises_not_editable(user):
+    draft = create_draft(owner=user)
+    draft.data = complete_data()
+    draft.status = ApplicationDraft.Status.SUBMITTED
+    draft.save(update_fields=("data", "status"))
+
+    with pytest.raises(DraftNotEditableError):
+        submit_draft(
+            draft_id=draft.id,
+            owner=user,
+            expected_revision=draft.revision,
+        )

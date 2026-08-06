@@ -52,7 +52,8 @@ def create_draft(
 @transaction.atomic
 def delete_draft(*, draft_id: UUID, owner: AbstractBaseUser) -> None:
     """編集中 Draft と未採用アップロードを削除する。"""
-    draft = ApplicationDraft.objects.for_update().owned_by(owner).editing().get(pk=draft_id)
+    draft = ApplicationDraft.objects.for_update().owned_by(owner).get(pk=draft_id)
+    draft.ensure_editable()
     files = [(upload.file.storage, upload.file.name) for upload in draft.uploads.all()]
     draft.delete()
     for storage, name in files:

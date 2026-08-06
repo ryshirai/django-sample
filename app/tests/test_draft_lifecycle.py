@@ -1,7 +1,7 @@
 import pytest
 
 from app.drafts import CURRENT_SCHEMA_VERSION
-from app.errors import ApplicationLockedError
+from app.errors import ApplicationLockedError, DraftNotEditableError
 from app.models import Application, ApplicationDraft
 from app.services import create_draft, delete_draft
 from app.tests.factories import create_application
@@ -46,3 +46,14 @@ def test_delete_draft(user):
     delete_draft(draft_id=draft.id, owner=user)
 
     assert not ApplicationDraft.objects.filter(id=draft.id).exists()
+
+
+def test_delete_submitted_draft_raises_not_editable(user):
+    draft = create_draft(owner=user)
+    draft.status = ApplicationDraft.Status.SUBMITTED
+    draft.save(update_fields=("status",))
+
+    with pytest.raises(DraftNotEditableError):
+        delete_draft(draft_id=draft.id, owner=user)
+
+    assert ApplicationDraft.objects.filter(id=draft.id).exists()

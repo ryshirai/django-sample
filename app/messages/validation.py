@@ -20,6 +20,12 @@ VALIDATION_MESSAGES = {
     ValidationCode.FILE_REQUIRED: "ファイルを選択してください。",
     ValidationCode.INVALID_MEMBER_SOURCE: "不正な担当者IDが含まれています。",
     ValidationCode.INVALID_ATTACHMENT_SOURCE: "不正な添付IDが含まれています。",
+    ValidationCode.MODEL_FIELD_REQUIRED: "必須項目が未入力です。",
+    ValidationCode.MODEL_FIELD_INVALID: "入力内容が正しくありません。",
+    ValidationCode.MODEL_FIELD_MAX_LENGTH: "文字数が上限を超えています。",
+    ValidationCode.MODEL_FIELD_MIN_LENGTH: "文字数が不足しています。",
+    ValidationCode.MODEL_FIELD_UNIQUE: "既に登録されている値です。",
+    ValidationCode.MODEL_VALIDATION_FAILED: "入力内容を確認してください。",
 }
 
 

@@ -166,7 +166,7 @@ DBトランザクションはオブジェクトストレージまでロールバ
 | `services/` | 画面/業務単位のユースケース、トランザクション境界 | 日本語メッセージ、HTML、Repository抽象化 |
 | `models/` | 状態遷移、不変条件、DB表現、DB制約 | 画面遷移、ユースケースのオーケストレーション |
 | `models/querysets.py` | 所有者スコープ、編集可能検索、関連先のロード方針 | 状態変更 |
-| `selectors/` | View向け読取クエリの名前付けと404境界 | 書込み |
+| `selectors/` | View向け読取。404は「不存在/所有者外」のみ | 書込み、編集可否判定 |
 | `drafts/` | JSON型、snapshot、全体検証、Command・ステップ payload | HTTP、正式保存、表示文言 |
 | `rules/` | Form と全体検証が共有する正規表現・検証コード | 文言、HTTP |
 | `messages/` | 成功・DomainError・検証コードの表示文言 | エラー発生条件 |
@@ -182,6 +182,8 @@ ServiceはDjango ORMを直接使います。ORMを単に包むRepositoryは、Qu
 1. `forms/`: 現在画面の入力だけを検証します。途中保存なので、他画面の未入力は許容します。
 2. `drafts/validation.py`: submit直前に全画面の必須項目、責任者、重複、行IDを検証します。
 3. `Model.full_clean()` とDB制約: 正式保存の直前とDB自身で最終防衛します。
+   `full_clean` の失敗も Django の表示文言ではなく `error.code` → `ValidationCode` にマップし、
+   文言は `messages/` が解決します。
 
 郵便番号形式などの共有制約は `rules/` に置き、Form と Draft 全体検証の両方から参照します。
 全体検証と submit 時のドメイン検証は **言語非依存の `ValidationCode`** だけを
@@ -285,7 +287,7 @@ ORM非依存が契約上必要な場合には候補ですが、通常のDjango�
 - `services/draft_lifecycle.py`: Draft作成・削除
 - `services/basic.py`, `address.py`, `members.py`, `attachments.py`: 画面単位更新
 - `services/submission.py`: 全体検証と確定トランザクション
-- `selectors/applications.py`, `selectors/drafts.py`: View向け読取
+- `selectors/applications.py`, `selectors/drafts.py`: View向け読取（詳細は所有者のみ。編集可否は DomainError）
 - `presentation/steps.py`: ステップ key / ラベル / ルート名の単一ソース
 - `presentation/drafts.py`: Form初期値の表示変換
 - `views/helpers.py`: ステップ更新の DomainError 処理と Redirect

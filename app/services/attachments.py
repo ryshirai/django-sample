@@ -5,7 +5,7 @@ from django.contrib.auth.base_user import AbstractBaseUser
 from django.db import transaction
 
 from app.drafts import AttachmentPayload
-from app.errors import DraftConflictError, DraftNotEditableError
+from app.errors import DraftConflictError
 from app.models import ApplicationDraft, DraftUpload
 
 
@@ -24,8 +24,7 @@ def update_attachments(
         .select_related("application")
         .get(pk=draft_id)
     )
-    if draft.status != ApplicationDraft.Status.EDITING:
-        raise DraftNotEditableError(draft_id=draft_id)
+    draft.ensure_editable()
     if draft.revision != expected_revision:
         raise DraftConflictError(
             expected_revision=expected_revision,

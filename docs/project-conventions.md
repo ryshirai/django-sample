@@ -162,7 +162,9 @@ messages      → errors, rules（コード参照のみ）
    **返すのは言語非依存コード**。
 
 3. **Model.full_clean() と DB 制約**  
-   正式保存直前と DB 自身の最終防衛。
+   正式保存直前と DB 自身の最終防衛。  
+   `full_clean` の失敗は `str(message)` ではなく **Django の `error.code` → ValidationCode** に変換し、  
+   文言は `messages/` が解決する（ドメイン層に表示文言を混ぜない）。
 
 共有できる形式制約（郵便番号など）は `rules/` に置き、Form と全体検証の両方から参照する。
 
@@ -259,27 +261,33 @@ class ApplicationQuerySet(models.QuerySet):
 
 ```python
 def get_draft_for_edit(*, draft_id: UUID, user: AbstractBaseUser) -> ApplicationDraft:
-    """編集可能な Draft を取得する。見つからなければ 404。"""
+    """所有者スコープの Draft を取得する。見つからなければ 404。"""
     return get_object_or_404(
-        ApplicationDraft.objects.owned_by(user).editing(),
+        ApplicationDraft.objects.owned_by(user),  # status では絞らない
         pk=draft_id,
     )
 ```
 
-- 404 にする境界は selector
-- 業務上「存在はするが編集不可」は DomainError（Service 側）
+- **404 にするのは「存在しない / 所有者外」だけ**。selector に `.editing()` や `.editable()` を混ぜない
+- **存在するが編集不可**（SUBMITTED・LOCKED など）は Model / Service の `ensure_editable()` が DomainError
+- 一覧用（`editing_draft_list` など）だけ status で絞ってよい。詳細取得と一覧は別関数にする
+
+View は DomainError を messages 付き Redirect にする（例: `load_editable_draft`）。
 
 ### 6.3 例外の使い分け
 
 | 状況 | 投げ方 | 受け止め |
 |---|---|---|
-| URL 上の ID が、権限付きスコープに存在しない | selector の `get_object_or_404` | Django が 404 |
-| 編集中でない・ロック済み・revision 競合など業務ルール違反 | Service が `DomainError` | View が messages + Redirect |
-| 入力の全体不整合（確定時） | `ValidationError`（DomainError 派生、code のみ） | View が localize して再表示 |
+| URL 上の ID が、権限付きスコープに存在しない | selector の `get_object_or_404`（所有者のみ） | Django が 404 |
+| 編集中でない・ロック済み・revision 競合など業務ルール違反 | Model/Service が `DomainError` | View が messages + Redirect |
+| 入力の全体不整合（確定時・full_clean 含む） | `ValidationError`（DomainError 派生、**code のみ**） | View が localize して再表示 |
 | Service 内の `.get()` が想定外に欠落 | `DoesNotExist`（通常は selector 済みで起きない） | バグとして 500。業務メッセージにしない |
 
 View で selector 済みでも、Service は **所有者スコープ付きで dual に読む**（権限の最終防衛）。  
 Service を HTTP なしで呼ぶテスト・管理コマンドでも同じ安全網が効く。
+
+`Model.full_clean()` の失敗も **Django の表示文言をそのまま載せない**。  
+`error.code` を `validation_code_from_django()` で `ValidationCode` にマップし、文言は `messages/` が解決する。
 
 ### 6.4 Service が更新とトランザクションを持つ
 
@@ -471,6 +479,8 @@ create_draft(request.user, application_id)
 def get_draft_for_edit(*, draft_id: UUID, user: AbstractBaseUser) -> ApplicationDraft:
     ...
 ```
+
+（実装では所有者スコープのみ。編集可否は `ensure_editable()`。）
 
 - 公開関数には引数型と戻り値型を付ける
 - `dict` の中身が契約なら TypedDict かコメントで形を示す

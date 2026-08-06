@@ -61,20 +61,26 @@ errors / rules → 他層に依存しない
 
 1. **forms/** … 今画面だけ。途中保存なら他画面未入力は許容
 2. **全体検証**（例: `drafts/validation`）… 確定直前。返すのは code のみ
-3. **Model.full_clean + DB 制約** … 正式保存の最終防衛
+3. **Model.full_clean + DB 制約** … 正式保存の最終防衛。失敗も ValidationCode へマップ
 
 共有形式は `rules/` に置き、Form と全体検証の両方から参照する。
 
 ## エラー
 
-- 存在しない（権限付きスコープ外）→ selector の 404
-- 業務ルール違反（ロック・競合・編集不可）→ Service が DomainError
-- 確定時の入力不整合 → DomainError 派生の ValidationError（code のみ）
+- 存在しない / 所有者外 → selector の 404（**status では絞らない**）
+- 編集不可・ロック・revision 競合 → Model/Service の DomainError（`ensure_editable` 等）
+- 確定時の入力不整合・full_clean 失敗 → ValidationError に **ValidationCode のみ**（Django 文言を載せない）
 - View が `message_for_error` / `localize_validation_errors` で文言化
 
 ```python
-# Service
-raise DraftConflictError(expected_revision=..., current_revision=...)
+# selector: 所有者のみ
+return get_object_or_404(ApplicationDraft.objects.owned_by(user), pk=draft_id)
+
+# Model / Service
+draft.ensure_editable()  # 非 EDITING なら DraftNotEditableError
+
+# full_clean
+validation_code_from_django(error.code)  # str(message) は使わない
 
 # View
 except DomainError as error:
@@ -126,5 +132,6 @@ except DomainError as error:
 - [ ] 日本語は `messages/`（Form 即時表示を除く）
 - [ ] 業務名が省略されていない
 - [ ] 公開関数がキーワード専用
-- [ ] 404 と DomainError を混同していない
+- [ ] 404 と DomainError を混同していない（selector に `.editing()` を混ぜていない）
+- [ ] full_clean 経路が `str(message)` ではなく ValidationCode になっている
 - [ ] テスト名で何を守るか分かる
