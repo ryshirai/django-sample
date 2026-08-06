@@ -4,8 +4,8 @@ from django import forms
 from django.forms import BaseFormSet, formset_factory
 
 from app.messages import VALIDATION_MESSAGES
-from app.models import ApplicationMember
-from app.rules import POSTAL_CODE_REGEX, ValidationCode
+from app.models import Application, ApplicationBudgetItem, ApplicationMember
+from app.rules import PHONE_REGEX, POSTAL_CODE_REGEX, ValidationCode
 
 
 class RevisionForm(forms.Form):
@@ -34,6 +34,28 @@ class AddressForm(RevisionForm):
     address_line = forms.CharField(label="番地・建物名", max_length=200)
 
 
+class ContactForm(RevisionForm):
+    phone = forms.RegexField(
+        label="電話番号",
+        regex=PHONE_REGEX,
+        max_length=20,
+        error_messages={
+            "invalid": VALIDATION_MESSAGES[ValidationCode.CONTACT_PHONE_FORM_INVALID],
+        },
+    )
+    email = forms.EmailField(label="連絡用メールアドレス")
+    preferred_method = forms.ChoiceField(
+        label="希望連絡手段",
+        choices=Application.PreferredContactMethod.choices,
+    )
+    note = forms.CharField(
+        label="連絡時の注意事項",
+        required=False,
+        max_length=200,
+        widget=forms.TextInput,
+    )
+
+
 class MemberForm(forms.Form):
     row_id = forms.UUIDField(widget=forms.HiddenInput)
     source_id = forms.UUIDField(required=False, widget=forms.HiddenInput)
@@ -60,6 +82,35 @@ class BaseMemberFormSet(BaseFormSet):
 
 
 MemberFormSet = formset_factory(MemberForm, formset=BaseMemberFormSet, extra=0)
+
+
+class BudgetItemForm(forms.Form):
+    row_id = forms.UUIDField(widget=forms.HiddenInput)
+    source_id = forms.UUIDField(required=False, widget=forms.HiddenInput)
+    description = forms.CharField(label="内容", max_length=200)
+    amount = forms.IntegerField(label="金額（円）", min_value=1)
+    category = forms.ChoiceField(
+        label="区分",
+        choices=ApplicationBudgetItem.Category.choices,
+    )
+    DELETE = forms.BooleanField(required=False, widget=forms.HiddenInput)
+
+
+class BaseBudgetItemFormSet(BaseFormSet):
+    def clean(self) -> None:
+        super().clean()
+        if any(self.errors):
+            return
+        row_ids = [
+            form.cleaned_data["row_id"]
+            for form in self.forms
+            if not form.cleaned_data.get("DELETE")
+        ]
+        if len(row_ids) != len(set(row_ids)):
+            raise forms.ValidationError(VALIDATION_MESSAGES[ValidationCode.ROW_ID_DUPLICATE_RELOAD])
+
+
+BudgetItemFormSet = formset_factory(BudgetItemForm, formset=BaseBudgetItemFormSet, extra=0)
 
 
 class AttachmentForm(forms.Form):
@@ -98,6 +149,33 @@ AttachmentFormSet = formset_factory(
     formset=BaseAttachmentFormSet,
     extra=0,
 )
+
+
+class ApplicationListFilterForm(forms.Form):
+    """一覧の絞り込み。画面単位の入力のみ。"""
+
+    status = forms.ChoiceField(
+        label="状態",
+        required=False,
+        choices=[("", "すべて")] + list(Application.Status.choices),
+    )
+    query = forms.CharField(
+        label="申請名",
+        required=False,
+        max_length=200,
+        widget=forms.TextInput(attrs={"placeholder": "申請名で検索"}),
+    )
+
+
+class RejectApplicationForm(forms.Form):
+    reason = forms.CharField(
+        label="却下理由",
+        widget=forms.Textarea,
+        max_length=2000,
+        error_messages={
+            "required": VALIDATION_MESSAGES[ValidationCode.REJECTION_REASON_REQUIRED],
+        },
+    )
 
 
 def new_row_id() -> str:

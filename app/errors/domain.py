@@ -51,3 +51,8 @@ class InvalidApplicationStateError(DomainError):
                 "operation": operation,
             },
         )
+
+
+class StaffPermissionError(DomainError):
+    def __init__(self) -> None:
+        super().__init__(code="staff_permission_required")

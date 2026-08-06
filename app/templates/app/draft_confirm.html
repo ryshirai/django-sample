@@ -17,8 +17,17 @@
       <dl><dt>申請名</dt><dd>{{ draft.data.basic.title|default:"未入力" }}</dd><dt>目的</dt><dd>{{ draft.data.basic.purpose|default:"未入力" }}</dd></dl>
       <h2>住所</h2>
       <p>〒{{ draft.data.address.postal_code }} {{ draft.data.address.prefecture }}{{ draft.data.address.city }}{{ draft.data.address.address_line }}</p>
+      <h2>連絡先</h2>
+      <dl>
+        <dt>電話</dt><dd>{{ draft.data.contact.phone|default:"未入力" }}</dd>
+        <dt>メール</dt><dd>{{ draft.data.contact.email|default:"未入力" }}</dd>
+        <dt>希望連絡手段</dt><dd>{{ draft.data.contact.preferred_method|default:"未選択" }}</dd>
+        <dt>注意事項</dt><dd>{{ draft.data.contact.note|default:"なし" }}</dd>
+      </dl>
       <h2>担当者</h2>
       <ul>{% for member in draft.data.members %}<li>{{ member.name }} / {{ member.email }} / {{ member.role }}</li>{% empty %}<li>未登録</li>{% endfor %}</ul>
+      <h2>経費明細</h2>
+      <ul>{% for item in draft.data.budget_items %}<li>{{ item.description }} / {{ item.amount }}円 / {{ item.category }}</li>{% empty %}<li>なし</li>{% endfor %}</ul>
       <h2>添付</h2>
       <ul>{% for attachment in draft.data.attachments %}<li>{{ attachment.label }}: {{ attachment.file_name }}</li>{% empty %}<li>なし</li>{% endfor %}</ul>
     </section>

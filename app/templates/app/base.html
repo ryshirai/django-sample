@@ -10,7 +10,14 @@
 <body>
   <header class="site-header">
     <a href="{% url 'app:application-list' %}">申請システム</a>
-    {% if request.user.is_authenticated %}<span>{{ request.user.username }}</span>{% endif %}
+    <div class="header-meta">
+      {% if request.user.is_authenticated %}
+        {% if request.user.is_staff %}
+          <a href="{% url 'app:review-list' %}">審査キュー</a>
+        {% endif %}
+        <span>{{ request.user.username }}</span>
+      {% endif %}
+    </div>
   </header>
   <main class="container">
     {% if messages %}
@@ -23,4 +30,3 @@
   {% block script %}{% endblock %}
 </body>
 </html>
-

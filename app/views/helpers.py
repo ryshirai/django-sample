@@ -12,6 +12,7 @@ from app.messages import SUCCESS_MESSAGES, message_for_error
 from app.models import ApplicationDraft
 from app.presentation import STEP_BY_KEY, resolve_step_key
 from app.selectors import get_draft_for_edit
+from app.services import ensure_current_schema
 
 
 def redirect_to_step(*, draft_id: UUID, step_key: str) -> HttpResponse:
@@ -44,6 +45,7 @@ def load_editable_draft(
     except DomainError as error:
         messages.error(request, message_for_error(error))
         return None, redirect("app:application-list")
+    draft = ensure_current_schema(draft=draft)
     return draft, None
 
 

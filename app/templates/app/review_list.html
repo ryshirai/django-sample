@@ -1,0 +1,25 @@
+{% extends "app/base.html" %}
+{% block title %}審査キュー{% endblock %}
+{% block content %}
+  <div class="page-heading">
+    <h1>審査キュー</h1>
+    <a class="button" href="{% url 'app:application-list' %}">申請一覧へ</a>
+  </div>
+  <div class="card-list">
+    {% for application in applications %}
+      <article class="card">
+        <div>
+          <strong>{{ application.title }}</strong>
+          <small>
+            {{ application.get_status_display }} /
+            申請者: {{ application.owner.username }} /
+            {{ application.submitted_at }}
+          </small>
+        </div>
+        <a class="button primary" href="{% url 'app:review-detail' application.id %}">審査する</a>
+      </article>
+    {% empty %}
+      <p>審査対象の申請はありません。</p>
+    {% endfor %}
+  </div>
+{% endblock %}

@@ -1,0 +1,18 @@
+{% extends "app/base.html" %}
+{% block title %}連絡先{% endblock %}
+{% block content %}
+  <h1>連絡先</h1>
+  <form id="draft-form" method="post" novalidate>
+    {% csrf_token %}
+    {% include "app/includes/step_navigation.html" %}
+    {{ form.non_field_errors }}
+    {{ form.revision }}
+    <div class="form-grid">
+      <div class="field">{{ form.phone.label_tag }}{{ form.phone }}{{ form.phone.errors }}</div>
+      <div class="field">{{ form.email.label_tag }}{{ form.email }}{{ form.email.errors }}</div>
+      <div class="field">{{ form.preferred_method.label_tag }}{{ form.preferred_method }}{{ form.preferred_method.errors }}</div>
+      <div class="field">{{ form.note.label_tag }}{{ form.note }}{{ form.note.errors }}</div>
+    </div>
+    <div class="form-actions"><button class="primary" type="submit" name="next" value="members">保存して次へ</button></div>
+  </form>
+{% endblock %}

@@ -2,9 +2,11 @@
 
 from .codes import ValidationCode
 from .django_validation import validation_code_from_django
-from .fields import POSTAL_CODE_PATTERN, POSTAL_CODE_REGEX
+from .fields import PHONE_PATTERN, PHONE_REGEX, POSTAL_CODE_PATTERN, POSTAL_CODE_REGEX
 
 __all__ = [
+    "PHONE_PATTERN",
+    "PHONE_REGEX",
     "POSTAL_CODE_PATTERN",
     "POSTAL_CODE_REGEX",
     "ValidationCode",

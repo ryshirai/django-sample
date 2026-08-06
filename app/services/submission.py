@@ -10,10 +10,14 @@ from app.errors import DraftConflictError, ValidationError
 from app.models import (
     Application,
     ApplicationAttachment,
+    ApplicationBudgetItem,
     ApplicationDraft,
     ApplicationMember,
 )
 from app.rules import ValidationCode, validation_code_from_django
+
+from .draft_schema import ensure_current_schema
+from .status_history import record_status_change
 
 # 一意制約を一時回避するための position 退避先。
 TEMPORARY_POSITION_BASE = 100_000
@@ -34,6 +38,7 @@ def submit_draft(
         .get(pk=draft_id)
     )
     draft.ensure_editable()
+    draft = ensure_current_schema(draft=draft)
     if draft.revision != expected_revision:
         raise DraftConflictError(
             expected_revision=expected_revision,
@@ -43,12 +48,14 @@ def submit_draft(
     validate_draft(draft.data)
     command = command_from_draft(draft)
     now = timezone.now()
+    previous_status = ""
 
     if draft.application_id:
         application = (
             Application.objects.select_for_update().owned_by(owner).get(pk=draft.application_id)
         )
         application.ensure_editable()
+        previous_status = application.status
     else:
         application = Application(owner=owner, submitted_at=now)
 
@@ -58,11 +65,16 @@ def submit_draft(
     application.prefecture = command.prefecture
     application.city = command.city
     application.address_line = command.address_line
+    application.contact_phone = command.contact_phone
+    application.contact_email = command.contact_email
+    application.preferred_contact_method = command.preferred_contact_method
+    application.contact_note = command.contact_note
     application.submit(submitted_at=now)
     _full_clean_or_domain_error(application)
     application.save()
 
     _save_members(application=application, commands=command.members)
+    _save_budget_items(application=application, commands=command.budget_items)
     _save_attachments(application=application, commands=command.attachments)
 
     draft.application = application
@@ -71,6 +83,13 @@ def submit_draft(
     draft.revision += 1
     draft.save(update_fields=("application", "status", "submitted_at", "revision", "updated_at"))
     draft.uploads.all().delete()
+
+    record_status_change(
+        application=application,
+        from_status=previous_status,
+        to_status=application.status,
+        changed_by=owner,
+    )
     return application
 
 
@@ -95,6 +114,30 @@ def _save_members(*, application: Application, commands) -> None:
         member.position = position
         _full_clean_or_domain_error(member, prefix="members")
         member.save()
+
+
+def _save_budget_items(*, application: Application, commands) -> None:
+    existing = {item.id: item for item in application.budget_items.select_for_update()}
+    claimed_ids = {item.source_id for item in commands if item.source_id}
+    if not claimed_ids.issubset(existing):
+        raise ValidationError(errors={"budget_items": [ValidationCode.INVALID_BUDGET_SOURCE]})
+
+    application.budget_items.exclude(id__in=claimed_ids).delete()
+    for position, budget_item in enumerate(existing.values()):
+        if budget_item.id in claimed_ids:
+            budget_item.position = TEMPORARY_POSITION_BASE + position
+            budget_item.save(update_fields=("position",))
+
+    for position, item in enumerate(commands):
+        budget_item = existing.get(item.source_id) or ApplicationBudgetItem(
+            application=application
+        )
+        budget_item.description = item.description
+        budget_item.amount = item.amount
+        budget_item.category = item.category
+        budget_item.position = position
+        _full_clean_or_domain_error(budget_item, prefix="budget_items")
+        budget_item.save()
 
 
 def _save_attachments(*, application: Application, commands) -> None:

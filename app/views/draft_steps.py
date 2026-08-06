@@ -6,16 +6,38 @@ from django.http import HttpRequest, HttpResponse
 from django.shortcuts import redirect, render
 from django.views.decorators.http import require_http_methods
 
-from app.drafts import AddressPayload, AttachmentPayload, BasicPayload, MemberPayload
+from app.drafts import (
+    AddressPayload,
+    AttachmentPayload,
+    BasicPayload,
+    BudgetItemPayload,
+    ContactPayload,
+    MemberPayload,
+)
 from app.errors import DomainError, ValidationError
-from app.forms import AddressForm, AttachmentFormSet, BasicForm, MemberFormSet, RevisionForm
+from app.forms import (
+    AddressForm,
+    AttachmentFormSet,
+    BasicForm,
+    BudgetItemFormSet,
+    ContactForm,
+    MemberFormSet,
+    RevisionForm,
+)
 from app.messages import SUCCESS_MESSAGES, localize_validation_errors, message_for_error
-from app.presentation import attachment_initial, draft_page_context, member_initial
+from app.presentation import (
+    attachment_initial,
+    budget_item_initial,
+    draft_page_context,
+    member_initial,
+)
 from app.services import (
     submit_draft,
     update_address,
     update_attachments,
     update_basic,
+    update_budget_items,
+    update_contact,
     update_members,
 )
 
@@ -71,7 +93,7 @@ def address_edit(request: HttpRequest, draft_id: UUID) -> HttpResponse:
             request=request,
             draft_id=draft.id,
             current_step="address",
-            fallback_step="members",
+            fallback_step="contact",
             next_step=form.cleaned_data["next"],
             update=lambda: update_address(
                 draft_id=draft.id,
@@ -90,6 +112,43 @@ def address_edit(request: HttpRequest, draft_id: UUID) -> HttpResponse:
     context = draft_page_context(draft=draft, current_step="address")
     context["form"] = form
     return render(request, "app/draft_address.html", context)
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def contact_edit(request: HttpRequest, draft_id: UUID) -> HttpResponse:
+    draft, error_response = load_editable_draft(request=request, draft_id=draft_id)
+    if error_response is not None:
+        return error_response
+    contact = draft.data.get("contact", {})
+    form = ContactForm(
+        request.POST or None,
+        initial={**contact, "revision": draft.revision},
+    )
+    if request.method == "POST" and form.is_valid():
+        response = run_draft_update(
+            request=request,
+            draft_id=draft.id,
+            current_step="contact",
+            fallback_step="members",
+            next_step=form.cleaned_data["next"],
+            update=lambda: update_contact(
+                draft_id=draft.id,
+                owner=request.user,
+                expected_revision=form.cleaned_data["revision"],
+                payload=ContactPayload(
+                    phone=form.cleaned_data["phone"],
+                    email=form.cleaned_data["email"],
+                    preferred_method=form.cleaned_data["preferred_method"],
+                    note=form.cleaned_data.get("note") or "",
+                ),
+            ),
+        )
+        if response is not None:
+            return response
+    context = draft_page_context(draft=draft, current_step="contact")
+    context["form"] = form
+    return render(request, "app/draft_contact.html", context)
 
 
 @login_required
@@ -123,7 +182,7 @@ def members_edit(request: HttpRequest, draft_id: UUID) -> HttpResponse:
             request=request,
             draft_id=draft.id,
             current_step="members",
-            fallback_step="attachments",
+            fallback_step="budget",
             next_step=revision_form.cleaned_data["next"],
             update=lambda: update_members(
                 draft_id=draft.id,
@@ -137,6 +196,53 @@ def members_edit(request: HttpRequest, draft_id: UUID) -> HttpResponse:
     context = draft_page_context(draft=draft, current_step="members")
     context.update({"formset": formset, "revision_form": revision_form})
     return render(request, "app/draft_members.html", context)
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def budget_edit(request: HttpRequest, draft_id: UUID) -> HttpResponse:
+    draft, error_response = load_editable_draft(request=request, draft_id=draft_id)
+    if error_response is not None:
+        return error_response
+    formset = BudgetItemFormSet(
+        request.POST or None,
+        initial=budget_item_initial(draft),
+        prefix="budget",
+    )
+    revision_form = RevisionForm(
+        request.POST or None,
+        initial={"revision": draft.revision},
+    )
+    if request.method == "POST" and formset.is_valid() and revision_form.is_valid():
+        payloads = [
+            BudgetItemPayload(
+                row_id=item["row_id"],
+                source_id=item.get("source_id"),
+                description=item["description"],
+                amount=item["amount"],
+                category=item["category"],
+            )
+            for item in (form.cleaned_data for form in formset.forms)
+            if not item.get("DELETE")
+        ]
+        response = run_draft_update(
+            request=request,
+            draft_id=draft.id,
+            current_step="budget",
+            fallback_step="attachments",
+            next_step=revision_form.cleaned_data["next"],
+            update=lambda: update_budget_items(
+                draft_id=draft.id,
+                owner=request.user,
+                expected_revision=revision_form.cleaned_data["revision"],
+                budget_items=payloads,
+            ),
+        )
+        if response is not None:
+            return response
+    context = draft_page_context(draft=draft, current_step="budget")
+    context.update({"formset": formset, "revision_form": revision_form})
+    return render(request, "app/draft_budget.html", context)
 
 
 @login_required
@@ -224,4 +330,3 @@ def confirm(request: HttpRequest, draft_id: UUID) -> HttpResponse:
     context = draft_page_context(draft=draft, current_step="confirm")
     context.update({"form": form, "validation_errors": validation_errors})
     return render(request, "app/draft_confirm.html", context)
-

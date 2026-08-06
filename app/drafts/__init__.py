@@ -10,6 +10,8 @@ from .types import (
     AttachmentFormInitial,
     AttachmentPayload,
     BasicPayload,
+    BudgetItemPayload,
+    ContactPayload,
     DraftData,
     MemberPayload,
 )
@@ -21,7 +23,9 @@ __all__ = [
     "AttachmentFormInitial",
     "AttachmentPayload",
     "BasicPayload",
+    "BudgetItemPayload",
     "CURRENT_SCHEMA_VERSION",
+    "ContactPayload",
     "DraftData",
     "MemberPayload",
     "command_from_draft",

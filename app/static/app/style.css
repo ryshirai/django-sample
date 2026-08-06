@@ -1,8 +1,13 @@
 :root { color-scheme: light; font-family: system-ui, sans-serif; color: #172033; background: #f6f8fb; }
 * { box-sizing: border-box; }
 body { margin: 0; }
-.site-header { display: flex; justify-content: space-between; padding: 1rem 2rem; color: white; background: #243b67; }
+.site-header { display: flex; justify-content: space-between; align-items: center; padding: 1rem 2rem; color: white; background: #243b67; }
 .site-header a { color: white; font-weight: 700; text-decoration: none; }
+.header-meta { display: flex; align-items: center; gap: 1rem; }
+.header-meta a { font-weight: 500; opacity: .9; }
+.filter-bar { display: flex; flex-wrap: wrap; gap: 1rem; align-items: end; margin-bottom: 1rem; padding: 1rem; border: 1px solid #d9dfeb; border-radius: .6rem; background: white; }
+.filter-bar .field { margin: 0; }
+.reject-form { display: grid; gap: .75rem; width: min(32rem, 100%); }
 .container { width: min(960px, calc(100% - 2rem)); margin: 2rem auto; }
 .page-heading, .card, .actions, .form-actions { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
 .card-list, .rows { display: grid; gap: 1rem; }

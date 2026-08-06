@@ -14,6 +14,15 @@ class MemberCommand:
 
 
 @dataclass(frozen=True, slots=True)
+class BudgetItemCommand:
+    row_id: UUID
+    source_id: UUID | None
+    description: str
+    amount: int
+    category: str
+
+
+@dataclass(frozen=True, slots=True)
 class AttachmentCommand:
     row_id: UUID
     source_id: UUID | None
@@ -32,7 +41,12 @@ class ApplicationCommand:
     prefecture: str
     city: str
     address_line: str
+    contact_phone: str
+    contact_email: str
+    preferred_contact_method: str
+    contact_note: str
     members: tuple[MemberCommand, ...]
+    budget_items: tuple[BudgetItemCommand, ...]
     attachments: tuple[AttachmentCommand, ...]
 
 
@@ -41,6 +55,7 @@ def command_from_draft(draft: ApplicationDraft) -> ApplicationCommand:
     data = draft.data
     basic = data["basic"]
     address = data["address"]
+    contact = data["contact"]
     return ApplicationCommand(
         title=basic["title"],
         purpose=basic["purpose"],
@@ -48,6 +63,10 @@ def command_from_draft(draft: ApplicationDraft) -> ApplicationCommand:
         prefecture=address["prefecture"],
         city=address["city"],
         address_line=address["address_line"],
+        contact_phone=contact["phone"],
+        contact_email=contact["email"],
+        preferred_contact_method=contact["preferred_method"],
+        contact_note=contact.get("note") or "",
         members=tuple(
             MemberCommand(
                 row_id=UUID(item["row_id"]),
@@ -57,6 +76,16 @@ def command_from_draft(draft: ApplicationDraft) -> ApplicationCommand:
                 role=item["role"],
             )
             for item in data["members"]
+        ),
+        budget_items=tuple(
+            BudgetItemCommand(
+                row_id=UUID(item["row_id"]),
+                source_id=UUID(item["source_id"]) if item.get("source_id") else None,
+                description=item["description"],
+                amount=int(item["amount"]),
+                category=item["category"],
+            )
+            for item in data.get("budget_items", [])
         ),
         attachments=tuple(
             AttachmentCommand(

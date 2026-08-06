@@ -5,7 +5,10 @@ Python 3.13 / Django 5.x を対象にした、MPA・モノアプリ構成の申�
 そのまま活用しながら、HTTP・ユースケース・状態遷移・検索・表示変換の責務を分離しています。
 
 すべての実装ファイルは省略のない独立したファイルです。新規申請、既存編集、画面間移動時の
-Draft保存、担当者の動的追加・削除、添付の一時保存、確認、確定、Draft削除を実装しています。
+Draft保存、担当者の動的追加・削除、連絡先・経費明細、添付の一時保存、確認、確定、Draft削除、
+申請詳細・一覧絞り込み、所有者による取消、staff による審査（開始・承認・却下）と状態履歴を
+実装しています。中規模業務アプリの骨格見本として、層ごとの責務分離を崩さずにボリュームを
+増やしています。
 
 ## 起動
 
@@ -120,6 +123,12 @@ Draftの `data` は次の形です。`schema_version` により、将来の項�
     "city": "千代田区",
     "address_line": "千代田1-1"
   },
+  "contact": {
+    "phone": "03-1234-5678",
+    "email": "contact@example.com",
+    "preferred_method": "email",
+    "note": "平日午後希望"
+  },
   "members": [
     {
       "row_id": "画面行のUUID",
@@ -127,6 +136,15 @@ Draftの `data` は次の形です。`schema_version` により、将来の項�
       "name": "...",
       "email": "...",
       "role": "owner"
+    }
+  ],
+  "budget_items": [
+    {
+      "row_id": "画面行のUUID",
+      "source_id": "既存ApplicationBudgetItemのUUIDまたはnull",
+      "description": "会場使用料",
+      "amount": 50000,
+      "category": "other"
     }
   ],
   "attachments": [
@@ -142,6 +160,10 @@ Draftの `data` は次の形です。`schema_version` により、将来の項�
 }
 ```
 
+`schema_version` は 2 です。読取・更新・確定の各経路で `ensure_current_schema()` が
+`migrate_draft_data()` を呼び、古い版の data を CURRENT まで進めて永続化します
+（v1 → v2 では contact / budget_items を補完）。
+
 Django formsetの連番はHTTPフィールド名を復元するためだけに使います。業務上の行同一性は
 `row_id`、正式データとの対応は `source_id` で判断します。並べ替えや途中削除をしてもindexを
 識別子として扱いません。
@@ -156,6 +178,32 @@ Draftを破棄した場合は、`transaction.on_commit()` で未採用ファイ�
 DBトランザクションはオブジェクトストレージまでロールバックできません。本番では、プロセス停止で
 残った孤児ファイルを削除する定期ジョブ、ウイルススキャン、拡張子だけに依存しないMIME検査、
 サイズ上限を追加してください。
+
+## 申請ライフサイクル
+
+```text
+Draft(editing)
+  --submit_draft--> Application(submitted)
+                      |-- owner: cancel --> cancelled
+                      |-- owner: edit draft --> re-submit (submitted)
+                      |-- staff: start_review --> under_review
+                                                   |-- approve --> approved
+                                                   |-- reject  --> rejected
+```
+
+- **所有者編集可** は `submitted` のみ。`under_review` / `approved` / `rejected` / `cancelled` /
+  `locked` では `ensure_editable()` が DomainError を投げる
+- 審査系 Service（`start_review` / `approve_application` / `reject_application`）は staff View
+  から呼ばれ、`ApplicationStatusHistory` に監査ログを残す
+- 却下理由は Service が必須検証し、コードは `ValidationCode`、文言は `messages/`
+- `locked` は外部連携などによるロック用の予約状態。今回の画面・Service にはロック操作を公開しない
+
+## 画面構成
+
+| 利用者 | 画面 |
+|---|---|
+| 申請者 | 一覧（状態・申請名フィルタ）、詳細、取消、Draft 7 ステップ（基本/住所/連絡先/担当者/経費/添付/確認） |
+| staff | 審査キュー、審査詳細（開始・承認・却下） |
 
 ## 責務
 
@@ -202,20 +250,22 @@ Django自身のValidationErrorと名前が衝突する箇所ではimport alias�
 3. Draftからimmutableな `ApplicationCommand` を生成
 4. 既存編集ならApplicationを `select_for_update()` してロック状態を検証
 5. Applicationを状態遷移させ、`full_clean()` 後に保存
-6. `source_id` が対象Application配下か検証して担当者・添付を同期
+6. `source_id` が対象Application配下か検証して担当者・経費明細・添付を同期
 7. DB制約でメール・表示順の一意性を保証
 8. Draftを `submitted` にしてrevisionを増加
+9. `ApplicationStatusHistory` に遷移を記録
 
-担当者や添付の入れ替え時には、一意制約との一時衝突を避けるため、既存行を安全な仮値・仮順序へ
-移してから最終値を保存します。これにより `source_id` を保持したまま更新できます。
+担当者・経費明細・添付の入れ替え時には、一意制約との一時衝突を避けるため、既存行を安全な仮値・
+仮順序へ移してから最終値を保存します。これにより `source_id` を保持したまま更新できます。
 
 ## DB制約
 
 - Draftの `revision >= 1`、`schema_version >= 1`
-- Application/Draftのstatus値
+- Application/Draftのstatus値、希望連絡手段、経費区分
+- 経費金額は 1 以上
 - 1ユーザー・1正式申請につき編集中Draftは1件
 - 同じApplication内の担当者メールアドレスは一意
-- 担当者と添付のpositionはApplication内で一意
+- 担当者・経費明細・添付のpositionはApplication内で一意
 - 外部キー削除方針: 正式ApplicationのownerとDraft元Applicationは `PROTECT`
 
 SQLiteはローカル実行用です。本番のロック・同時実行テストはPostgreSQLでも実施してください。
@@ -338,17 +388,15 @@ python manage.py makemigrations --check --dry-run
 pytest
 ```
 
-作成時には Django 5.2.17 で `check`、マイグレーション差分なし、Ruff、12件のpytestを通しています。
-実行コンテナにPython 3.13がなかったため検証ランタイムだけ3.12でしたが、プロジェクトの
-`requires-python` とRuff targetは3.13に固定しています。使用しているDjango APIは5.2対応です。
+中規模拡充後は `uv run ruff check .` / `uv run pytest` / `uv run python manage.py check` を
+通過しています（Python 3.13 / Django 5.2）。
 
 ## 実案件で追加するもの
 
 - PostgreSQLでの `TransactionTestCase` を使った実並行トランザクション試験
-- `migrate_draft_data` への版ごとの変換実装と、読取時の永続化・管理コマンド
+- Draft schema のさらなる版追加時の変換関数と、バッチ用管理コマンド
 - Draft有効期限、孤児ファイル、確定済みDraftの保管/削除ポリシー
 - 添付の容量/MIME/マルウェア検査とprivate storageの署名URL
-- 監査ログ（誰が、いつ、どのrevisionを確定したか）
 - オブジェクト単位権限がowner以外にも必要ならPolicy関数または権限QuerySet
 - 本番settings、PostgreSQL、キャッシュ、構造化ログ、エラー監視
 - Application自体の外部更新も競合検出する場合はsource revisionをDraftへ保存

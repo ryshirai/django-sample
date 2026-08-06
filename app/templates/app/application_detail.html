@@ -1,0 +1,77 @@
+{% extends "app/base.html" %}
+{% block title %}{{ application.title }}{% endblock %}
+{% block content %}
+  <div class="page-heading">
+    <h1>{{ application.title }}</h1>
+    <div class="actions">
+      <a class="button" href="{% url 'app:application-list' %}">一覧へ</a>
+      {% if can_edit %}
+        <form method="post" action="{% url 'app:edit-start' application.id %}">
+          {% csrf_token %}<button type="submit">編集</button>
+        </form>
+      {% endif %}
+      {% if can_cancel %}
+        <form method="post" action="{% url 'app:application-cancel' application.id %}">
+          {% csrf_token %}<button class="danger" type="submit">取消</button>
+        </form>
+      {% endif %}
+    </div>
+  </div>
+
+  <section class="summary">
+    <p><strong>状態:</strong> {{ application.get_status_display }}</p>
+    <p><strong>申請日時:</strong> {{ application.submitted_at }}</p>
+    {% if application.rejection_reason %}
+      <p class="message error"><strong>却下理由:</strong> {{ application.rejection_reason }}</p>
+    {% endif %}
+
+    <h2>基本情報</h2>
+    <dl>
+      <dt>目的</dt><dd>{{ application.purpose }}</dd>
+    </dl>
+
+    <h2>住所</h2>
+    <p>〒{{ application.postal_code }} {{ application.prefecture }}{{ application.city }}{{ application.address_line }}</p>
+
+    <h2>連絡先</h2>
+    <dl>
+      <dt>電話</dt><dd>{{ application.contact_phone }}</dd>
+      <dt>メール</dt><dd>{{ application.contact_email }}</dd>
+      <dt>希望連絡手段</dt><dd>{{ application.get_preferred_contact_method_display }}</dd>
+      <dt>注意事項</dt><dd>{{ application.contact_note|default:"なし" }}</dd>
+    </dl>
+
+    <h2>担当者</h2>
+    <ul>
+      {% for member in application.members.all %}
+        <li>{{ member.name }} / {{ member.email }} / {{ member.get_role_display }}</li>
+      {% empty %}<li>なし</li>{% endfor %}
+    </ul>
+
+    <h2>経費明細</h2>
+    <ul>
+      {% for item in application.budget_items.all %}
+        <li>{{ item.description }} / {{ item.amount }}円 / {{ item.get_category_display }}</li>
+      {% empty %}<li>なし</li>{% endfor %}
+    </ul>
+
+    <h2>添付</h2>
+    <ul>
+      {% for attachment in application.attachments.all %}
+        <li>{{ attachment.label }}: {{ attachment.original_name }}</li>
+      {% empty %}<li>なし</li>{% endfor %}
+    </ul>
+
+    <h2>状態履歴</h2>
+    <ul>
+      {% for entry in status_history_rows %}
+        <li>
+          {{ entry.created_at }}:
+          {{ entry.from_label }} → {{ entry.to_label }}
+          （{{ entry.changed_by_username }}）
+          {% if entry.comment %}— {{ entry.comment }}{% endif %}
+        </li>
+      {% empty %}<li>履歴はまだありません。</li>{% endfor %}
+    </ul>
+  </section>
+{% endblock %}

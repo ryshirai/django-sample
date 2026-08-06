@@ -17,12 +17,27 @@ class AddressSection(TypedDict):
     address_line: str
 
 
+class ContactSection(TypedDict):
+    phone: str
+    email: str
+    preferred_method: str
+    note: str
+
+
 class MemberRow(TypedDict):
     row_id: str
     source_id: str | None
     name: str
     email: str
     role: str
+
+
+class BudgetItemRow(TypedDict):
+    row_id: str
+    source_id: str | None
+    description: str
+    amount: int
+    category: str
 
 
 class AttachmentRow(TypedDict):
@@ -37,7 +52,9 @@ class AttachmentRow(TypedDict):
 class DraftData(TypedDict):
     basic: BasicSection
     address: AddressSection
+    contact: ContactSection
     members: list[MemberRow]
+    budget_items: list[BudgetItemRow]
     attachments: list[AttachmentRow]
 
 
@@ -56,12 +73,29 @@ class AddressPayload:
 
 
 @dataclass(frozen=True, slots=True)
+class ContactPayload:
+    phone: str
+    email: str
+    preferred_method: str
+    note: str
+
+
+@dataclass(frozen=True, slots=True)
 class MemberPayload:
     row_id: UUID
     source_id: UUID | None
     name: str
     email: str
     role: str
+
+
+@dataclass(frozen=True, slots=True)
+class BudgetItemPayload:
+    row_id: UUID
+    source_id: UUID | None
+    description: str
+    amount: int
+    category: str
 
 
 @dataclass(frozen=True, slots=True)

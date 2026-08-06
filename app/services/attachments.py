@@ -8,6 +8,8 @@ from app.drafts import AttachmentPayload
 from app.errors import DraftConflictError
 from app.models import ApplicationDraft, DraftUpload
 
+from .draft_schema import ensure_current_schema
+
 
 @transaction.atomic
 def update_attachments(
@@ -25,6 +27,7 @@ def update_attachments(
         .get(pk=draft_id)
     )
     draft.ensure_editable()
+    draft = ensure_current_schema(draft=draft)
     if draft.revision != expected_revision:
         raise DraftConflictError(
             expected_revision=expected_revision,

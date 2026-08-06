@@ -8,6 +8,8 @@ from django.utils import timezone
 from app.errors import DraftConflictError, DraftNotEditableError
 from app.models import ApplicationDraft
 
+from .draft_schema import ensure_current_schema
+
 
 def update_draft_data(
     *,
@@ -19,6 +21,7 @@ def update_draft_data(
     """mutate で data を書き換え、revision 一致時だけ CAS 更新する。"""
     draft = ApplicationDraft.objects.owned_by(owner).get(pk=draft_id)
     draft.ensure_editable()
+    draft = ensure_current_schema(draft=draft)
 
     new_data = deepcopy(draft.data)
     mutate(new_data)
