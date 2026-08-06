@@ -1,0 +1,15 @@
+{% extends "app/base.html" %}
+{% block title %}基本情報{% endblock %}
+{% block content %}
+  <h1>申請基本情報</h1>
+  <form id="draft-form" method="post" novalidate>
+    {% csrf_token %}
+    {% include "app/includes/step_navigation.html" %}
+    {{ form.non_field_errors }}
+    {{ form.revision }}
+    <div class="field">{{ form.title.label_tag }}{{ form.title }}{{ form.title.errors }}</div>
+    <div class="field">{{ form.purpose.label_tag }}{{ form.purpose }}{{ form.purpose.errors }}</div>
+    <div class="form-actions"><button class="primary" type="submit" name="next" value="address">保存して次へ</button></div>
+  </form>
+{% endblock %}
+

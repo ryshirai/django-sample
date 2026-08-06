@@ -1,0 +1,18 @@
+{% extends "app/base.html" %}
+{% block title %}住所{% endblock %}
+{% block content %}
+  <h1>申請住所</h1>
+  <form id="draft-form" method="post" novalidate>
+    {% csrf_token %}
+    {% include "app/includes/step_navigation.html" %}
+    {{ form.non_field_errors }}{{ form.revision }}
+    <div class="form-grid">
+      <div class="field">{{ form.postal_code.label_tag }}{{ form.postal_code }}{{ form.postal_code.errors }}</div>
+      <div class="field">{{ form.prefecture.label_tag }}{{ form.prefecture }}{{ form.prefecture.errors }}</div>
+      <div class="field">{{ form.city.label_tag }}{{ form.city }}{{ form.city.errors }}</div>
+      <div class="field">{{ form.address_line.label_tag }}{{ form.address_line }}{{ form.address_line.errors }}</div>
+    </div>
+    <div class="form-actions"><button class="primary" type="submit" name="next" value="members">保存して次へ</button></div>
+  </form>
+{% endblock %}
+

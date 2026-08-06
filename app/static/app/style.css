@@ -1,0 +1,26 @@
+:root { color-scheme: light; font-family: system-ui, sans-serif; color: #172033; background: #f6f8fb; }
+* { box-sizing: border-box; }
+body { margin: 0; }
+.site-header { display: flex; justify-content: space-between; padding: 1rem 2rem; color: white; background: #243b67; }
+.site-header a { color: white; font-weight: 700; text-decoration: none; }
+.container { width: min(960px, calc(100% - 2rem)); margin: 2rem auto; }
+.page-heading, .card, .actions, .form-actions { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+.card-list, .rows { display: grid; gap: 1rem; }
+.card, .row-card, .summary, .error-summary { padding: 1rem; border: 1px solid #d9dfeb; border-radius: .6rem; background: white; }
+.card small { display: block; color: #59657b; margin-top: .35rem; }
+.steps { display: flex; flex-wrap: wrap; gap: .5rem; margin: 1.5rem 0; }
+button, .button { padding: .6rem .9rem; border: 1px solid #aab4c5; border-radius: .35rem; background: white; color: #172033; text-decoration: none; cursor: pointer; }
+.primary, .step.current { color: white; border-color: #315faa; background: #315faa; }
+.danger { color: #a21c2b; border-color: #d6a2a8; }
+.field { margin: 1rem 0; }
+.field label { display: block; font-weight: 650; margin-bottom: .35rem; }
+input:not([type="hidden"]), textarea, select { width: 100%; max-width: 42rem; padding: .65rem; border: 1px solid #aab4c5; border-radius: .35rem; }
+textarea { min-height: 8rem; }
+.form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr)); gap: 0 1.5rem; }
+.form-actions { justify-content: flex-end; margin-top: 1.5rem; }
+.message { padding: .8rem 1rem; border-radius: .35rem; background: #e6eefc; }
+.message.error, .error-summary { color: #8b1725; background: #fff0f1; }
+.errorlist { color: #a21c2b; }
+dt { font-weight: 700; }
+dd { margin: .25rem 0 1rem; }
+
