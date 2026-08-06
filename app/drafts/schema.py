@@ -1,12 +1,20 @@
 import uuid
+from collections.abc import Callable
+from copy import deepcopy
 from typing import Any
 
 from app.models import Application
 
+from .types import DraftData
+
 CURRENT_SCHEMA_VERSION = 1
 
+# from_version -> その版から +1 へ進める変換。
+_MIGRATIONS: dict[int, Callable[[dict[str, Any]], dict[str, Any]]] = {}
 
-def empty_draft_data() -> dict[str, Any]:
+
+def empty_draft_data() -> DraftData:
+    """新規 Draft 用の空 JSON。"""
     return {
         "basic": {"title": "", "purpose": ""},
         "address": {
@@ -20,8 +28,8 @@ def empty_draft_data() -> dict[str, Any]:
     }
 
 
-def snapshot_application(application: Application) -> dict[str, Any]:
-    """編集開始時に一度だけ正式データをDraft形式へ写像する。"""
+def snapshot_application(application: Application) -> DraftData:
+    """正式 Application を Draft JSON へ写像する。"""
     return {
         "basic": {
             "title": application.title,
@@ -55,3 +63,16 @@ def snapshot_application(application: Application) -> dict[str, Any]:
             for attachment in application.attachments.all()
         ],
     }
+
+
+def migrate_draft_data(data: dict[str, Any], *, from_version: int) -> DraftData:
+    """from_version の data を CURRENT_SCHEMA_VERSION まで進める。"""
+    version = from_version
+    migrated = deepcopy(data)
+    while version < CURRENT_SCHEMA_VERSION:
+        migrator = _MIGRATIONS.get(version)
+        if migrator is None:
+            break
+        migrated = migrator(migrated)
+        version += 1
+    return migrated  # type: ignore[return-value]

@@ -1,3 +1,8 @@
+from uuid import UUID
+
+from django.contrib.auth.base_user import AbstractBaseUser
+
+from app.drafts import AddressPayload
 from app.models import ApplicationDraft
 
 from .draft_updater import update_draft_data
@@ -5,20 +10,19 @@ from .draft_updater import update_draft_data
 
 def update_address(
     *,
-    draft_id,
-    owner,
+    draft_id: UUID,
+    owner: AbstractBaseUser,
     expected_revision: int,
-    postal_code: str,
-    prefecture: str,
-    city: str,
-    address_line: str,
+    payload: AddressPayload,
 ) -> ApplicationDraft:
+    """address セクションを payload で置き換える。"""
+
     def mutate(data: dict) -> None:
         data["address"] = {
-            "postal_code": postal_code,
-            "prefecture": prefecture,
-            "city": city,
-            "address_line": address_line,
+            "postal_code": payload.postal_code,
+            "prefecture": payload.prefecture,
+            "city": payload.city,
+            "address_line": payload.address_line,
         }
 
     return update_draft_data(

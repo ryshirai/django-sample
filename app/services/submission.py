@@ -1,20 +1,32 @@
+from uuid import UUID
+
+from django.contrib.auth.base_user import AbstractBaseUser
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import transaction
 from django.utils import timezone
 
 from app.drafts import command_from_draft, validate_draft
 from app.errors import DraftConflictError, DraftNotEditableError, ValidationError
-from app.messages import VALIDATION_MESSAGES
 from app.models import (
     Application,
     ApplicationAttachment,
     ApplicationDraft,
     ApplicationMember,
 )
+from app.rules import ValidationCode
+
+# 一意制約を一時回避するための position 退避先。
+TEMPORARY_POSITION_BASE = 100_000
 
 
 @transaction.atomic
-def submit_draft(*, draft_id, owner, expected_revision: int) -> Application:
+def submit_draft(
+    *,
+    draft_id: UUID,
+    owner: AbstractBaseUser,
+    expected_revision: int,
+) -> Application:
+    """Draft を全体検証し、正式 Application へ原子的に反映する。"""
     draft = (
         ApplicationDraft.objects.for_update()
         .owned_by(owner)
@@ -35,7 +47,7 @@ def submit_draft(*, draft_id, owner, expected_revision: int) -> Application:
 
     if draft.application_id:
         application = (
-            Application.objects.select_for_update().visible_to(owner).get(pk=draft.application_id)
+            Application.objects.select_for_update().owned_by(owner).get(pk=draft.application_id)
         )
         application.ensure_editable()
     else:
@@ -67,13 +79,13 @@ def _save_members(*, application: Application, commands) -> None:
     existing = {member.id: member for member in application.members.select_for_update()}
     claimed_ids = {item.source_id for item in commands if item.source_id}
     if not claimed_ids.issubset(existing):
-        raise ValidationError(errors={"members": [VALIDATION_MESSAGES["invalid_member_source"]]})
+        raise ValidationError(errors={"members": [ValidationCode.INVALID_MEMBER_SOURCE]})
 
     application.members.exclude(id__in=claimed_ids).delete()
     kept = [existing[item.source_id] for item in commands if item.source_id]
     for position, member in enumerate(kept):
         member.email = f"temporary-{member.id}@invalid.local"
-        member.position = 100_000 + position
+        member.position = TEMPORARY_POSITION_BASE + position
         member.save(update_fields=("email", "position"))
 
     for position, item in enumerate(commands):
@@ -93,7 +105,7 @@ def _save_attachments(*, application: Application, commands) -> None:
     claimed_ids = {item.source_id for item in commands if item.source_id}
     if not claimed_ids.issubset(existing):
         raise ValidationError(
-            errors={"attachments": [VALIDATION_MESSAGES["invalid_attachment_source"]]}
+            errors={"attachments": [ValidationCode.INVALID_ATTACHMENT_SOURCE]}
         )
 
     removed = application.attachments.exclude(id__in=claimed_ids)
@@ -101,7 +113,7 @@ def _save_attachments(*, application: Application, commands) -> None:
     removed.delete()
     for position, attachment in enumerate(existing.values()):
         if attachment.id in claimed_ids:
-            attachment.position = 100_000 + position
+            attachment.position = TEMPORARY_POSITION_BASE + position
             attachment.save(update_fields=("position",))
 
     retained_names = set()
@@ -109,6 +121,7 @@ def _save_attachments(*, application: Application, commands) -> None:
         attachment = existing.get(item.source_id) or ApplicationAttachment(application=application)
         old_name = attachment.file.name if attachment.pk else None
         attachment.label = item.label
+        # Draft と同じストレージキーを正式行へ引き継ぐ。
         attachment.file.name = item.storage_name
         attachment.original_name = item.file_name
         attachment.position = position

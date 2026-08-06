@@ -3,8 +3,10 @@ import uuid
 import pytest
 from django.core.files.uploadedfile import SimpleUploadedFile
 
+from app.drafts import AttachmentPayload
 from app.errors import ValidationError
 from app.models import Application, ApplicationDraft
+from app.rules import ValidationCode
 from app.services import create_draft, submit_draft, update_attachments
 from app.tests.factories import complete_data, create_application
 
@@ -63,7 +65,7 @@ def test_whole_draft_validation_raises_domain_error_and_rolls_back(user):
         )
 
     draft.refresh_from_db()
-    assert "basic.title" in raised.value.errors
+    assert raised.value.errors["basic.title"] == [ValidationCode.BASIC_TITLE_REQUIRED]
     assert draft.status == ApplicationDraft.Status.EDITING
     assert draft.revision == original_revision
     assert Application.objects.count() == 0
@@ -79,14 +81,14 @@ def test_staged_attachment_is_referenced_by_formal_model(user):
         owner=user,
         expected_revision=draft.revision,
         attachments=[
-            {
-                "row_id": row_id,
-                "source_id": None,
-                "label": "本人確認書類",
-                "file": SimpleUploadedFile("identity.txt", b"sample"),
-                "existing_file_name": "",
-                "DELETE": False,
-            }
+            AttachmentPayload(
+                row_id=row_id,
+                source_id=None,
+                label="本人確認書類",
+                file=SimpleUploadedFile("identity.txt", b"sample"),
+                existing_file_name="",
+                delete=False,
+            )
         ],
     )
 

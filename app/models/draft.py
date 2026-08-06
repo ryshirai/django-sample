@@ -47,6 +47,7 @@ class ApplicationDraft(models.Model):
                 condition=Q(schema_version__gte=1),
                 name="application_draft_schema_version_gte_1",
             ),
+            # 値は Status と揃える（Meta から外側の Status は参照できない）。
             models.CheckConstraint(
                 condition=Q(status__in=["editing", "submitted"]),
                 name="application_draft_valid_status",
@@ -63,11 +64,13 @@ class ApplicationDraft(models.Model):
 
 
 def draft_upload_path(instance, filename: str) -> str:
-    # Draftと正式モデルが同じ不変オブジェクトを参照できる、ライフサイクル非依存のキー。
+    # Draft と正式添付が同じストレージキーを共有する。
     return f"application-files/{instance.id}/{filename}"
 
 
 class DraftUpload(models.Model):
+    """編集中の一時添付。確定後は行だけ消し、ファイルオブジェクトは正式側が参照する。"""
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     draft = models.ForeignKey(
         ApplicationDraft,

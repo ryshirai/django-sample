@@ -5,9 +5,12 @@ from django.forms import BaseFormSet, formset_factory
 
 from app.messages import VALIDATION_MESSAGES
 from app.models import ApplicationMember
+from app.rules import POSTAL_CODE_REGEX, ValidationCode
 
 
 class RevisionForm(forms.Form):
+    """楽観ロック用 revision と、遷移先ステップ next を運ぶ共通 Form。"""
+
     revision = forms.IntegerField(min_value=1, widget=forms.HiddenInput)
     next = forms.CharField(required=False, widget=forms.HiddenInput)
 
@@ -20,9 +23,11 @@ class BasicForm(RevisionForm):
 class AddressForm(RevisionForm):
     postal_code = forms.RegexField(
         label="郵便番号",
-        regex=r"^\d{3}-?\d{4}$",
+        regex=POSTAL_CODE_REGEX,
         max_length=8,
-        error_messages={"invalid": VALIDATION_MESSAGES["postal_code_form_invalid"]},
+        error_messages={
+            "invalid": VALIDATION_MESSAGES[ValidationCode.POSTAL_CODE_FORM_INVALID],
+        },
     )
     prefecture = forms.CharField(label="都道府県", max_length=20)
     city = forms.CharField(label="市区町村", max_length=100)
@@ -45,13 +50,13 @@ class BaseMemberFormSet(BaseFormSet):
             return
         active = [form.cleaned_data for form in self.forms if not form.cleaned_data.get("DELETE")]
         if not active:
-            raise forms.ValidationError(VALIDATION_MESSAGES["member_required"])
+            raise forms.ValidationError(VALIDATION_MESSAGES[ValidationCode.MEMBER_REQUIRED])
         emails = [item["email"].casefold() for item in active]
         if len(emails) != len(set(emails)):
-            raise forms.ValidationError(VALIDATION_MESSAGES["email_duplicate"])
+            raise forms.ValidationError(VALIDATION_MESSAGES[ValidationCode.EMAIL_DUPLICATE])
         row_ids = [item["row_id"] for item in active]
         if len(row_ids) != len(set(row_ids)):
-            raise forms.ValidationError(VALIDATION_MESSAGES["row_id_duplicate_reload"])
+            raise forms.ValidationError(VALIDATION_MESSAGES[ValidationCode.ROW_ID_DUPLICATE_RELOAD])
 
 
 MemberFormSet = formset_factory(MemberForm, formset=BaseMemberFormSet, extra=0)
@@ -70,7 +75,7 @@ class AttachmentForm(forms.Form):
         if cleaned.get("DELETE"):
             return cleaned
         if not cleaned.get("file") and not cleaned.get("existing_file_name"):
-            self.add_error("file", VALIDATION_MESSAGES["file_required"])
+            self.add_error("file", VALIDATION_MESSAGES[ValidationCode.FILE_REQUIRED])
         return cleaned
 
 
@@ -85,7 +90,7 @@ class BaseAttachmentFormSet(BaseFormSet):
             if not form.cleaned_data.get("DELETE")
         ]
         if len(row_ids) != len(set(row_ids)):
-            raise forms.ValidationError(VALIDATION_MESSAGES["row_id_duplicate_reload"])
+            raise forms.ValidationError(VALIDATION_MESSAGES[ValidationCode.ROW_ID_DUPLICATE_RELOAD])
 
 
 AttachmentFormSet = formset_factory(

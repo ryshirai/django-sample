@@ -2,6 +2,7 @@ import uuid
 
 from django.utils import timezone
 
+from app.drafts import empty_draft_data
 from app.models import Application, ApplicationMember
 
 
@@ -28,22 +29,22 @@ def create_application(*, owner, status=Application.Status.SUBMITTED) -> Applica
 
 
 def complete_data() -> dict:
-    return {
-        "basic": {"title": "新規申請", "purpose": "設備を利用するため"},
-        "address": {
-            "postal_code": "150-0001",
-            "prefecture": "東京都",
-            "city": "渋谷区",
-            "address_line": "神宮前1-1",
-        },
-        "members": [
-            {
-                "row_id": str(uuid.uuid4()),
-                "source_id": None,
-                "name": "山田太郎",
-                "email": "taro@example.com",
-                "role": "owner",
-            }
-        ],
-        "attachments": [],
+    """submit 可能な最小 Draft data。empty_draft_data を土台に上書きする。"""
+    data = empty_draft_data()
+    data["basic"] = {"title": "新規申請", "purpose": "設備を利用するため"}
+    data["address"] = {
+        "postal_code": "150-0001",
+        "prefecture": "東京都",
+        "city": "渋谷区",
+        "address_line": "神宮前1-1",
     }
+    data["members"] = [
+        {
+            "row_id": str(uuid.uuid4()),
+            "source_id": None,
+            "name": "山田太郎",
+            "email": "taro@example.com",
+            "role": "owner",
+        }
+    ]
+    return data
