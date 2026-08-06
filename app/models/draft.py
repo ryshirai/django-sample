@@ -30,7 +30,8 @@ class ApplicationDraft(models.Model):
     )
     data = models.JSONField(default=dict)
     revision = models.PositiveBigIntegerField(default=1)
-    schema_version = models.PositiveIntegerField(default=1)
+    # 新規作成の既定。読取時は services.ensure_current_schema が CURRENT まで進める。
+    schema_version = models.PositiveIntegerField(default=2)
     status = models.CharField(max_length=20, choices=Status, default=Status.EDITING)
     submitted_at = models.DateTimeField(null=True, blank=True)
     updated_at = models.DateTimeField(auto_now=True)

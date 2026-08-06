@@ -18,6 +18,11 @@ def member_initial(draft: ApplicationDraft) -> list[dict]:
     return list(draft.data.get("members", []))
 
 
+def budget_item_initial(draft: ApplicationDraft) -> list[dict]:
+    """BudgetItemFormSet 用 initial。"""
+    return list(draft.data.get("budget_items", []))
+
+
 def attachment_initial(draft: ApplicationDraft) -> list[AttachmentFormInitial]:
     """AttachmentFormSet 用 initial（ファイル本体は existing_file_name のみ）。"""
     return [

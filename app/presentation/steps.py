@@ -16,7 +16,9 @@ class Step:
 STEPS: tuple[Step, ...] = (
     Step("basic", "基本情報"),
     Step("address", "住所"),
+    Step("contact", "連絡先"),
     Step("members", "担当者"),
+    Step("budget", "経費明細"),
     Step("attachments", "添付"),
     Step("confirm", "確認"),
 )

@@ -3,9 +3,14 @@
 {% block content %}
   <div class="page-heading">
     <h1>申請一覧</h1>
-    <form method="post" action="{% url 'app:draft-create' %}">
-      {% csrf_token %}<button class="primary" type="submit">新規申請</button>
-    </form>
+    <div class="actions">
+      {% if request.user.is_staff %}
+        <a class="button" href="{% url 'app:review-list' %}">審査キュー</a>
+      {% endif %}
+      <form method="post" action="{% url 'app:draft-create' %}">
+        {% csrf_token %}<button class="primary" type="submit">新規申請</button>
+      </form>
+    </div>
   </div>
 
   {% if drafts %}
@@ -32,6 +37,11 @@
 
   <section>
     <h2>正式申請</h2>
+    <form method="get" class="filter-bar">
+      <div class="field">{{ filter_form.status.label_tag }}{{ filter_form.status }}</div>
+      <div class="field">{{ filter_form.query.label_tag }}{{ filter_form.query }}</div>
+      <button type="submit">絞り込む</button>
+    </form>
     <div class="card-list">
       {% for application in applications %}
         <article class="card">
@@ -39,14 +49,16 @@
             <strong>{{ application.title }}</strong>
             <small>{{ application.get_status_display }} / {{ application.submitted_at }}</small>
           </div>
-          {% if application.status != "locked" %}
-            <form method="post" action="{% url 'app:edit-start' application.id %}">
-              {% csrf_token %}<button type="submit">編集</button>
-            </form>
-          {% endif %}
+          <div class="actions">
+            <a class="button" href="{% url 'app:application-detail' application.id %}">詳細</a>
+            {% if application.status in editable_statuses %}
+              <form method="post" action="{% url 'app:edit-start' application.id %}">
+                {% csrf_token %}<button type="submit">編集</button>
+              </form>
+            {% endif %}
+          </div>
         </article>
       {% empty %}<p>申請はまだありません。</p>{% endfor %}
     </div>
   </section>
 {% endblock %}
-

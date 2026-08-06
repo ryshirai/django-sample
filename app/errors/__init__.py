@@ -4,6 +4,7 @@ from .domain import (
     DraftConflictError,
     DraftNotEditableError,
     InvalidApplicationStateError,
+    StaffPermissionError,
     ValidationError,
 )
 
@@ -13,5 +14,6 @@ __all__ = [
     "DraftConflictError",
     "DraftNotEditableError",
     "InvalidApplicationStateError",
+    "StaffPermissionError",
     "ValidationError",
 ]
