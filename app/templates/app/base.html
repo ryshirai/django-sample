@@ -1,0 +1,26 @@
+{% load static %}
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}申請システム{% endblock %}</title>
+  <link rel="stylesheet" href="{% static 'app/style.css' %}">
+</head>
+<body>
+  <header class="site-header">
+    <a href="{% url 'app:application-list' %}">申請システム</a>
+    {% if request.user.is_authenticated %}<span>{{ request.user.username }}</span>{% endif %}
+  </header>
+  <main class="container">
+    {% if messages %}
+      <div aria-live="polite">
+        {% for message in messages %}<p class="message {{ message.tags }}">{{ message }}</p>{% endfor %}
+      </div>
+    {% endif %}
+    {% block content %}{% endblock %}
+  </main>
+  {% block script %}{% endblock %}
+</body>
+</html>
+

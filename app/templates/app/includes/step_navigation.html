@@ -1,0 +1,9 @@
+<nav class="steps" aria-label="入力ステップ">
+  {% for step, label in steps %}
+    <button type="submit" name="next" value="{{ step }}" form="draft-form"
+            class="step {% if step == current_step %}current{% endif %}">
+      {{ label }}
+    </button>
+  {% endfor %}
+</nav>
+

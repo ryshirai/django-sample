@@ -1,0 +1,24 @@
+{% extends "app/base.html" %}
+{% load static %}
+{% block title %}添付{% endblock %}
+{% block content %}
+  <h1>添付一覧</h1>
+  <form id="draft-form" method="post" enctype="multipart/form-data" novalidate>
+    {% csrf_token %}
+    {% include "app/includes/step_navigation.html" %}
+    {{ revision_form.revision }}{{ formset.management_form }}{{ formset.non_form_errors }}
+    <div id="attachments-rows" class="rows">
+      {% for attachment_form in formset %}
+        <section class="row-card">
+          {% if attachment_form.initial.existing_file_name %}<p>保存済み: {{ attachment_form.initial.existing_file_name }}</p>{% endif %}
+          {{ attachment_form.as_p }}<button type="button" data-remove-row>この行を削除</button>
+        </section>
+      {% endfor %}
+    </div>
+    <template id="attachments-empty-form"><section class="row-card">{{ formset.empty_form.as_p }}<button type="button" data-remove-row>この行を削除</button></section></template>
+    <button type="button" data-add-row data-prefix="attachments">添付を追加</button>
+    <div class="form-actions"><button class="primary" type="submit" name="next" value="confirm">保存して確認へ</button></div>
+  </form>
+{% endblock %}
+{% block script %}<script src="{% static 'app/formset.js' %}" defer></script>{% endblock %}
+

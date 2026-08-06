@@ -1,0 +1,52 @@
+{% extends "app/base.html" %}
+{% block title %}申請一覧{% endblock %}
+{% block content %}
+  <div class="page-heading">
+    <h1>申請一覧</h1>
+    <form method="post" action="{% url 'app:draft-create' %}">
+      {% csrf_token %}<button class="primary" type="submit">新規申請</button>
+    </form>
+  </div>
+
+  {% if drafts %}
+    <section>
+      <h2>編集中の下書き</h2>
+      <div class="card-list">
+        {% for draft in drafts %}
+          <article class="card">
+            <div>
+              <strong>{{ draft.data.basic.title|default:"名称未入力" }}</strong>
+              <small>rev.{{ draft.revision }} / {{ draft.updated_at }}</small>
+            </div>
+            <div class="actions">
+              <a class="button" href="{% url 'app:draft-basic' draft.id %}">続ける</a>
+              <form method="post" action="{% url 'app:draft-delete' draft.id %}">
+                {% csrf_token %}<button class="danger" type="submit">削除</button>
+              </form>
+            </div>
+          </article>
+        {% endfor %}
+      </div>
+    </section>
+  {% endif %}
+
+  <section>
+    <h2>正式申請</h2>
+    <div class="card-list">
+      {% for application in applications %}
+        <article class="card">
+          <div>
+            <strong>{{ application.title }}</strong>
+            <small>{{ application.get_status_display }} / {{ application.submitted_at }}</small>
+          </div>
+          {% if application.status != "locked" %}
+            <form method="post" action="{% url 'app:edit-start' application.id %}">
+              {% csrf_token %}<button type="submit">編集</button>
+            </form>
+          {% endif %}
+        </article>
+      {% empty %}<p>申請はまだありません。</p>{% endfor %}
+    </div>
+  </section>
+{% endblock %}
+

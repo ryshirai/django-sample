@@ -1,0 +1,27 @@
+{% extends "app/base.html" %}
+{% block title %}確認{% endblock %}
+{% block content %}
+  <h1>申請内容の確認</h1>
+  <form id="draft-form" method="post">
+    {% csrf_token %}
+    {% include "app/includes/step_navigation.html" %}
+    {{ form.revision }}
+    {% if validation_errors %}
+      <section class="error-summary" role="alert">
+        <h2>未入力・不整合があります</h2>
+        <ul>{% for field, errors in validation_errors.items %}{% for error in errors %}<li>{{ field }}: {{ error }}</li>{% endfor %}{% endfor %}</ul>
+      </section>
+    {% endif %}
+    <section class="summary">
+      <h2>基本情報</h2>
+      <dl><dt>申請名</dt><dd>{{ draft.data.basic.title|default:"未入力" }}</dd><dt>目的</dt><dd>{{ draft.data.basic.purpose|default:"未入力" }}</dd></dl>
+      <h2>住所</h2>
+      <p>〒{{ draft.data.address.postal_code }} {{ draft.data.address.prefecture }}{{ draft.data.address.city }}{{ draft.data.address.address_line }}</p>
+      <h2>担当者</h2>
+      <ul>{% for member in draft.data.members %}<li>{{ member.name }} / {{ member.email }} / {{ member.role }}</li>{% empty %}<li>未登録</li>{% endfor %}</ul>
+      <h2>添付</h2>
+      <ul>{% for attachment in draft.data.attachments %}<li>{{ attachment.label }}: {{ attachment.file_name }}</li>{% empty %}<li>なし</li>{% endfor %}</ul>
+    </section>
+    <div class="form-actions"><button class="primary" type="submit" name="action" value="submit">申請する</button></div>
+  </form>
+{% endblock %}
