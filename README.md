@@ -301,6 +301,11 @@ ORM非依存が契約上必要な場合には候補ですが、通常のDjango�
 
 ### 他プロジェクトへ持ち回すとき
 
+- AI 実装時の指示: [AGENTS.md](AGENTS.md)
+- 人間向けの構成・規約の本体: [docs/project-conventions.md](docs/project-conventions.md)
+
+他案件では `AGENTS.md` と `docs/project-conventions.md` をセットでコピーしてください。
+
 ほぼそのままコピーできる核:
 
 - `errors/`、`rules/` の仕組み、`services/draft_updater.py`

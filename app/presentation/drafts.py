@@ -1,4 +1,4 @@
-from app.drafts.types import AttachmentFormInitial
+from app.drafts import AttachmentFormInitial
 from app.models import ApplicationDraft
 
 from .steps import STEPS

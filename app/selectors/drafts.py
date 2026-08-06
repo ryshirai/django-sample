@@ -1,12 +1,14 @@
 from uuid import UUID
 
 from django.contrib.auth.base_user import AbstractBaseUser
+from django.db.models import QuerySet
 from django.shortcuts import get_object_or_404
 
 from app.models import ApplicationDraft
 
 
-def editing_draft_list(*, user: AbstractBaseUser):
+def editing_draft_list(*, user: AbstractBaseUser) -> QuerySet[ApplicationDraft]:
+    """所有者の編集中 Draft 一覧。"""
     return ApplicationDraft.objects.owned_by(user).editing().order_by("-updated_at")
 
 

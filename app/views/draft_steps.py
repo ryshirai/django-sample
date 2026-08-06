@@ -1,3 +1,5 @@
+from uuid import UUID
+
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.http import HttpRequest, HttpResponse
@@ -23,7 +25,7 @@ from .helpers import redirect_after_save, run_draft_update
 
 @login_required
 @require_http_methods(["GET", "POST"])
-def basic_edit(request: HttpRequest, draft_id) -> HttpResponse:
+def basic_edit(request: HttpRequest, draft_id: UUID) -> HttpResponse:
     draft = get_draft_for_edit(draft_id=draft_id, user=request.user)
     form = BasicForm(
         request.POST or None,
@@ -55,7 +57,7 @@ def basic_edit(request: HttpRequest, draft_id) -> HttpResponse:
 
 @login_required
 @require_http_methods(["GET", "POST"])
-def address_edit(request: HttpRequest, draft_id) -> HttpResponse:
+def address_edit(request: HttpRequest, draft_id: UUID) -> HttpResponse:
     draft = get_draft_for_edit(draft_id=draft_id, user=request.user)
     form = AddressForm(
         request.POST or None,
@@ -89,7 +91,7 @@ def address_edit(request: HttpRequest, draft_id) -> HttpResponse:
 
 @login_required
 @require_http_methods(["GET", "POST"])
-def members_edit(request: HttpRequest, draft_id) -> HttpResponse:
+def members_edit(request: HttpRequest, draft_id: UUID) -> HttpResponse:
     draft = get_draft_for_edit(draft_id=draft_id, user=request.user)
     formset = MemberFormSet(
         request.POST or None,
@@ -134,7 +136,7 @@ def members_edit(request: HttpRequest, draft_id) -> HttpResponse:
 
 @login_required
 @require_http_methods(["GET", "POST"])
-def attachments_edit(request: HttpRequest, draft_id) -> HttpResponse:
+def attachments_edit(request: HttpRequest, draft_id: UUID) -> HttpResponse:
     draft = get_draft_for_edit(draft_id=draft_id, user=request.user)
     formset = AttachmentFormSet(
         request.POST or None,
@@ -180,7 +182,7 @@ def attachments_edit(request: HttpRequest, draft_id) -> HttpResponse:
 
 @login_required
 @require_http_methods(["GET", "POST"])
-def confirm(request: HttpRequest, draft_id) -> HttpResponse:
+def confirm(request: HttpRequest, draft_id: UUID) -> HttpResponse:
     draft = get_draft_for_edit(draft_id=draft_id, user=request.user)
     form = RevisionForm(request.POST or None, initial={"revision": draft.revision})
     validation_errors: dict[str, list[str]] = {}
