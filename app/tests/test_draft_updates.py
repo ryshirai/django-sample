@@ -2,6 +2,7 @@ import uuid
 
 import pytest
 
+from app.drafts import BasicPayload, MemberPayload
 from app.errors import DraftConflictError
 from app.services import create_draft, update_basic, update_members
 
@@ -15,8 +16,7 @@ def test_update_draft_increments_revision(user):
         draft_id=draft.id,
         owner=user,
         expected_revision=1,
-        title="変更後",
-        purpose="変更後の目的",
+        payload=BasicPayload(title="変更後", purpose="変更後の目的"),
     )
 
     assert updated.revision == 2
@@ -32,14 +32,13 @@ def test_dynamic_rows_keep_uuid_identity(user):
         owner=user,
         expected_revision=draft.revision,
         members=[
-            {
-                "row_id": row_id,
-                "source_id": None,
-                "name": "担当者",
-                "email": "member@example.com",
-                "role": "owner",
-                "DELETE": False,
-            }
+            MemberPayload(
+                row_id=row_id,
+                source_id=None,
+                name="担当者",
+                email="member@example.com",
+                role="owner",
+            )
         ],
     )
 
@@ -52,8 +51,7 @@ def test_stale_revision_raises_conflict_and_does_not_overwrite(user):
         draft_id=draft.id,
         owner=user,
         expected_revision=1,
-        title="先勝ち",
-        purpose="最初の更新",
+        payload=BasicPayload(title="先勝ち", purpose="最初の更新"),
     )
 
     with pytest.raises(DraftConflictError) as raised:
@@ -61,8 +59,7 @@ def test_stale_revision_raises_conflict_and_does_not_overwrite(user):
             draft_id=draft.id,
             owner=user,
             expected_revision=1,
-            title="後勝ちにしてはいけない",
-            purpose="競合更新",
+            payload=BasicPayload(title="後勝ちにしてはいけない", purpose="競合更新"),
         )
 
     draft.refresh_from_db()

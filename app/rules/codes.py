@@ -1,0 +1,22 @@
+"""検証結果に載せる言語非依存コード。文言は messages 側で解決する。"""
+
+
+class ValidationCode:
+    BASIC_TITLE_REQUIRED = "basic_title_required"
+    BASIC_PURPOSE_REQUIRED = "basic_purpose_required"
+    PREFECTURE_REQUIRED = "prefecture_required"
+    CITY_REQUIRED = "city_required"
+    ADDRESS_LINE_REQUIRED = "address_line_required"
+    POSTAL_CODE_INVALID = "postal_code_invalid"
+    POSTAL_CODE_FORM_INVALID = "postal_code_form_invalid"
+    MEMBER_REQUIRED = "member_required"
+    MEMBER_EMAIL_DUPLICATE = "member_email_duplicate"
+    EMAIL_DUPLICATE = "email_duplicate"
+    OWNER_REQUIRED = "owner_required"
+    MEMBER_ROW_ID_DUPLICATE = "member_row_id_duplicate"
+    ATTACHMENT_ROW_ID_DUPLICATE = "attachment_row_id_duplicate"
+    ROW_ID_DUPLICATE_RELOAD = "row_id_duplicate_reload"
+    ATTACHMENT_FILE_REQUIRED = "attachment_file_required"
+    FILE_REQUIRED = "file_required"
+    INVALID_MEMBER_SOURCE = "invalid_member_source"
+    INVALID_ATTACHMENT_SOURCE = "invalid_attachment_source"

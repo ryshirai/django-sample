@@ -1,7 +1,10 @@
 from copy import deepcopy
+from uuid import UUID
 
+from django.contrib.auth.base_user import AbstractBaseUser
 from django.db import transaction
 
+from app.drafts import AttachmentPayload
 from app.errors import DraftConflictError, DraftNotEditableError
 from app.models import ApplicationDraft, DraftUpload
 
@@ -9,11 +12,12 @@ from app.models import ApplicationDraft, DraftUpload
 @transaction.atomic
 def update_attachments(
     *,
-    draft_id,
-    owner,
+    draft_id: UUID,
+    owner: AbstractBaseUser,
     expected_revision: int,
-    attachments: list[dict],
+    attachments: list[AttachmentPayload],
 ) -> ApplicationDraft:
+    """添付行と DraftUpload を同期し、revision を進める。"""
     draft = (
         ApplicationDraft.objects.for_update()
         .owned_by(owner)
@@ -32,13 +36,13 @@ def update_attachments(
     normalized: list[dict] = []
     retained_row_ids = set()
     for item in attachments:
-        if item.get("DELETE"):
+        if item.delete:
             continue
-        row_id = item["row_id"]
+        row_id = item.row_id
         row_id_text = str(row_id)
         retained_row_ids.add(row_id)
         old = previous.get(row_id_text, {})
-        uploaded_file = item.get("file")
+        uploaded_file = item.file
         if uploaded_file:
             old_upload = DraftUpload.objects.filter(draft=draft, row_id=row_id).first()
             if old_upload:
@@ -57,14 +61,14 @@ def update_attachments(
             storage_name = upload.file.name
             upload_id = str(upload.id)
         else:
-            file_name = old.get("file_name", item.get("existing_file_name", ""))
+            file_name = old.get("file_name", item.existing_file_name or "")
             storage_name = old.get("storage_name", "")
             upload_id = old.get("draft_upload_id")
         normalized.append(
             {
                 "row_id": row_id_text,
-                "source_id": str(item["source_id"]) if item.get("source_id") else None,
-                "label": item["label"],
+                "source_id": str(item.source_id) if item.source_id else None,
+                "label": item.label,
                 "file_name": file_name,
                 "storage_name": storage_name,
                 "draft_upload_id": upload_id,

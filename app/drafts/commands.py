@@ -24,6 +24,8 @@ class AttachmentCommand:
 
 @dataclass(frozen=True, slots=True)
 class ApplicationCommand:
+    """submit が正式モデルへ書き込む不変の入力束。"""
+
     title: str
     purpose: str
     postal_code: str
@@ -35,6 +37,7 @@ class ApplicationCommand:
 
 
 def command_from_draft(draft: ApplicationDraft) -> ApplicationCommand:
+    """検証済み Draft から ApplicationCommand を組み立てる。"""
     data = draft.data
     basic = data["basic"]
     address = data["address"]

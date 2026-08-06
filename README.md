@@ -167,10 +167,11 @@ DBトランザクションはオブジェクトストレージまでロールバ
 | `models/` | 状態遷移、不変条件、DB表現、DB制約 | 画面遷移、ユースケースのオーケストレーション |
 | `models/querysets.py` | 所有者スコープ、編集可能検索、関連先のロード方針 | 状態変更 |
 | `selectors/` | View向け読取クエリの名前付けと404境界 | 書込み |
-| `drafts/` | JSONスキーマ、正式データのsnapshot、全体検証、Command変換 | HTTP、正式保存 |
-| `messages/` | 成功・DomainError・検証文言の一元管理 | エラー発生条件 |
+| `drafts/` | JSON型、snapshot、全体検証、Command・ステップ payload | HTTP、正式保存、表示文言 |
+| `rules/` | Form と全体検証が共有する正規表現・検証コード | 文言、HTTP |
+| `messages/` | 成功・DomainError・検証コードの表示文言 | エラー発生条件 |
 | `errors/` | 言語非依存のDomainErrorコードと構造化パラメータ | 表示文言 |
-| `presentation/` | テンプレート向け初期値とステップ表示データ | DB更新 |
+| `presentation/` | ステップ定義、テンプレート向け初期値 | DB更新 |
 
 ServiceはDjango ORMを直接使います。ORMを単に包むRepositoryは、QuerySetの表現力、
 `select_for_update()`、`prefetch_related()`、`transaction.atomic()` を隠し、抽象化の維持コストを
@@ -182,9 +183,13 @@ ServiceはDjango ORMを直接使います。ORMを単に包むRepositoryは、Qu
 2. `drafts/validation.py`: submit直前に全画面の必須項目、責任者、重複、行IDを検証します。
 3. `Model.full_clean()` とDB制約: 正式保存の直前とDB自身で最終防衛します。
 
-全体エラーは `app.errors.ValidationError` としてService境界を越え、Viewが
-`messages/application.py` の表示文言へ変換します。Django自身のValidationErrorと名前が衝突する
-箇所ではimport aliasを使い、どちらのエラーかを明示しています。
+郵便番号形式などの共有制約は `rules/` に置き、Form と Draft 全体検証の両方から参照します。
+全体検証と submit 時のドメイン検証は **言語非依存の `ValidationCode`** だけを
+`app.errors.ValidationError` に載せます。View が `localize_validation_errors()` で
+`messages/validation.py` の文言へ変換します。Form は即時表示のため messages を直接参照します。
+
+Django自身のValidationErrorと名前が衝突する箇所ではimport aliasを使い、どちらのエラーかを
+明示しています。
 
 ## 確定トランザクション
 
@@ -266,20 +271,24 @@ ORM非依存が契約上必要な場合には候補ですが、通常のDjango�
 - `urls.py`: 一覧、Draft作成/削除、編集開始、各ステップ
 - `models/application.py`: Application、担当者、正式添付、状態遷移
 - `models/draft.py`: JSON Draft、一時添付、revision/schema/status制約
-- `models/querysets.py`: 所有者・編集可能・関連取得の検索ロジック
+- `models/querysets.py`: 所有者・編集可能・関連取得（Application/Draft とも `owned_by`）
+- `rules/codes.py`, `rules/fields.py`: 共有検証コードと郵便番号形式
 - `errors/domain.py`: DomainError派生型
 - `messages/application.py`: 成功文言とDomainErrorの表示変換
-- `messages/validation.py`: Form・全体検証・保存検証の文言
-- `drafts/schema.py`: 空Draftと既存Application snapshot
+- `messages/validation.py`: ValidationCode の表示文言と localize 関数
+- `drafts/types.py`: Draft JSON とステップ payload の型
+- `drafts/schema.py`: 空Draft、snapshot、schema_version migrate フック
 - `drafts/commands.py`: Draftから正式保存Commandへの純粋変換
-- `drafts/validation.py`: Draft全体検証
+- `drafts/validation.py`: Draft全体検証（コードのみ返す）
 - `forms/application.py`: 画面単位Formと動的FormSet
 - `services/draft_updater.py`: JSON compare-and-swap共通処理
 - `services/draft_lifecycle.py`: Draft作成・削除
 - `services/basic.py`, `address.py`, `members.py`, `attachments.py`: 画面単位更新
 - `services/submission.py`: 全体検証と確定トランザクション
 - `selectors/applications.py`, `selectors/drafts.py`: View向け読取
-- `presentation/drafts.py`: ステップとForm初期値の表示変換
+- `presentation/steps.py`: ステップ key / ラベル / ルート名の単一ソース
+- `presentation/drafts.py`: Form初期値の表示変換
+- `views/helpers.py`: ステップ更新の DomainError 処理と Redirect
 - `views/applications.py`: 一覧・作成・編集開始・削除のHTTP処理
 - `views/draft_steps.py`: 各画面のGET/POST/Redirect
 - `templates/app/*.html`: MPA画面
@@ -289,6 +298,20 @@ ORM非依存が契約上必要な場合には候補ですが、通常のDjango�
 - `migrations/0001_initial.py`: 全テーブル・制約の初期マイグレーション
 
 各パッケージの `__init__.py` は公開APIを明示し、内部ファイル名への依存を減らしています。
+
+### 他プロジェクトへ持ち回すとき
+
+ほぼそのままコピーできる核:
+
+- `errors/`、`rules/` の仕組み、`services/draft_updater.py`
+- Draft の revision / status / schema_version と `owned_by` QuerySet
+- selector の 404 境界、3段バリデーション、`row_id` / `source_id`
+- frozen Command とステップ payload、POST-Redirect-GET
+
+案件ごとに差し替える部分:
+
+- `drafts/schema`・`validation` の中身、`forms/`、各 step service
+- `views/draft_steps` の画面、`templates/`、`messages` の文言
 
 ### テスト
 
@@ -315,7 +338,7 @@ pytest
 ## 実案件で追加するもの
 
 - PostgreSQLでの `TransactionTestCase` を使った実並行トランザクション試験
-- Draft schema_versionごとのアップグレード関数と管理コマンド
+- `migrate_draft_data` への版ごとの変換実装と、読取時の永続化・管理コマンド
 - Draft有効期限、孤児ファイル、確定済みDraftの保管/削除ポリシー
 - 添付の容量/MIME/マルウェア検査とprivate storageの署名URL
 - 監査ログ（誰が、いつ、どのrevisionを確定したか）

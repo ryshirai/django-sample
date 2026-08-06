@@ -36,6 +36,7 @@ class Application(models.Model):
     class Meta:
         ordering = ("-updated_at",)
         constraints = [
+            # 値は Status と揃える（Meta から外側の Status は参照できない）。
             models.CheckConstraint(
                 condition=Q(status__in=["submitted", "locked"]),
                 name="application_valid_status",
@@ -99,7 +100,8 @@ class ApplicationMember(models.Model):
 
 
 def application_attachment_path(instance, filename: str) -> str:
-    return f"applications/{instance.application_id}/{instance.id}/{filename}"
+    # 通常の確定フローは storage_name を直接代入する。直書き時のフォールバック先。
+    return f"application-files/{instance.id}/{filename}"
 
 
 class ApplicationAttachment(models.Model):
